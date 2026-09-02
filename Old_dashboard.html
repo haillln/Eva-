@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard — EVA</title>
+</head>
+<body>
+
+  <template id="eva-page-content">
+    <!-- EVA Trading Journal Dashboard — live Firebase data + ECharts runtime. -->
+
+    <style>
+      /* =========================================================
+         SCOPE: namespaced "db-" and built entirely on the shared
+         layout's CSS variables (--eva-bg, --eva-surface, --eva-text,
+         --eva-gradient, etc.) so dark/light mode keep working with
+         zero extra wiring, matching the pattern used on challenge.html.
+         ========================================================= */
+      .db-wrap{
+        --db-radius-lg:20px;
+        --db-radius-md:14px;
+        --db-radius-sm:10px;
+        --db-gap:18px;
+
+        --db-pos:#22C55E;
+        --db-pos-bg:rgba(34,197,94,0.12);
+        --db-pos-border:rgba(34,197,94,0.35);
+
+        --db-neg:#EF4444;
+        --db-neg-bg:rgba(239,68,68,0.12);
+        --db-neg-border:rgba(239,68,68,0.35);
+
+        --db-warn:#F59E0B;
+        --db-warn-bg:rgba(245,158,11,0.12);
+        --db-warn-border:rgba(245,158,11,0.35);
+
+        max-width:1400px;
+        margin:0 auto;
+        padding-bottom:48px;
+        font-family:var(--eva-font-body);
+        color:var(--eva-text);
+      }
+      .db-wrap *{ box-sizing:border-box; min-width:0; }
+      .db-wrap h1,.db-wrap h2,.db-wrap h3,.db-wrap p,.db-wrap span,.db-wrap label{ color:inherit; }
+      .db-wrap button{ font-family:inherit; cursor:pointer; }
+      .db-wrap select,.db-wrap input{ font-family:inherit; }
+
+      .db-section{ margin-bottom:22px; }
+      .db-section-head{
+        display:flex; align-items:center; justify-content:space-between;
+        gap:12px; margin-bottom:12px; flex-wrap:wrap;
+      }
+      .db-section-title{
+        font-family:var(--eva-font-display);
+        font-size:1rem; font-weight:700; letter-spacing:-0.1px;
+        display:flex; align-items:center; gap:8px;
+      }
+      .db-section-title svg{ width:17px; height:17px; stroke:var(--eva-text-dim); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .db-section-sub{ font-size:0.78rem; color:var(--eva-text-dim); margin-top:2px; }
+
+      .db-card{
+        background:var(--eva-surface);
+        border:1px solid var(--eva-border);
+        border-radius:var(--db-radius-lg);
+        padding:18px;
+      }
+
+      .db-num{ font-family:var(--eva-font-display); font-weight:700; letter-spacing:-0.4px; font-variant-numeric:tabular-nums; }
+      .db-label{ font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--eva-text-dim); }
+      .db-pos{ color:var(--db-pos); }
+      .db-neg{ color:var(--db-neg); }
+
+      .db-grid{ display:grid; gap:var(--db-gap); }
+      .db-grid-4{ grid-template-columns:repeat(4,1fr); }
+      .db-grid-3{ grid-template-columns:repeat(3,1fr); }
+      .db-grid-2{ grid-template-columns:repeat(2,1fr); }
+      @media (max-width:1100px){ .db-grid-4{ grid-template-columns:repeat(2,1fr); } .db-grid-3{ grid-template-columns:repeat(2,1fr);} }
+      @media (max-width:640px){ .db-grid-4,.db-grid-3,.db-grid-2{ grid-template-columns:1fr; } }
+
+      .db-btn{
+        display:inline-flex; align-items:center; gap:7px;
+        padding:9px 14px; border-radius:var(--db-radius-sm);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        color:var(--eva-text); font-size:0.82rem; font-weight:600;
+        transition:background-color .15s var(--eva-ease), border-color .15s var(--eva-ease);
+        white-space:nowrap;
+      }
+      .db-btn:hover{ background:color-mix(in srgb, var(--eva-accent-1) 10%, var(--eva-surface-2)); border-color:color-mix(in srgb, var(--eva-accent-1) 35%, transparent); }
+      .db-btn svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+      .db-btn-icon{ width:36px; height:36px; padding:0; justify-content:center; flex-shrink:0; }
+      .db-btn-primary{ background:var(--eva-gradient); border:none; color:#fff; }
+
+      .db-empty{
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:8px; padding:28px 18px; text-align:center; color:var(--eva-text-dim);
+        border:1px dashed var(--eva-border); border-radius:var(--db-radius-md);
+      }
+      .db-empty svg{ width:24px; height:24px; stroke:var(--eva-text-dim); fill:none; stroke-width:1.6; }
+      .db-empty strong{ color:var(--eva-text); font-size:0.85rem; font-weight:600; }
+      .db-empty span{ font-size:0.76rem; }
+
+      /* ---------------------------------------------------------
+         1. HEADER + ACCOUNT SELECTOR
+         --------------------------------------------------------- */
+      .db-header{
+        display:flex; align-items:flex-start; justify-content:space-between;
+        gap:16px; flex-wrap:wrap; margin-bottom:20px;
+      }
+      .db-header h1{ font-family:var(--eva-font-display); font-size:1.7rem; font-weight:700; letter-spacing:-0.3px; }
+      .db-header p{ color:var(--eva-text-dim); font-size:0.9rem; margin-top:4px; }
+      .db-header-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+      .db-account-dropdown{ position:relative; }
+      .db-account-trigger{
+        display:flex; align-items:center; gap:12px;
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+        border-radius:var(--db-radius-md); padding:10px 14px 10px 12px;
+        min-width:220px; cursor:pointer;
+        transition:border-color .2s var(--eva-ease), background-color .2s var(--eva-ease);
+      }
+      .db-account-trigger:hover{ background:var(--eva-surface-2); }
+      .db-account-trigger.db-open{ border-color:var(--eva-accent-1); }
+      .db-account-trigger-icon{
+        width:34px; height:34px; border-radius:10px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        background:var(--eva-gradient); color:#fff;
+      }
+      .db-account-trigger-icon svg{ width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2; }
+      .db-account-trigger-info{ flex:1; min-width:0; }
+      .db-account-trigger-name{ font-size:0.86rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .db-account-trigger-meta{ font-size:0.72rem; color:var(--eva-text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .db-account-trigger-chevron{ width:16px; height:16px; stroke:var(--eva-text-dim); fill:none; stroke-width:2; flex-shrink:0; transition:transform .2s var(--eva-ease); }
+      .db-account-trigger.db-open .db-account-trigger-chevron{ transform:rotate(180deg); }
+
+      .db-account-panel{
+        position:absolute; top:calc(100% + 8px); right:0; left:auto;
+        min-width:280px; max-width:320px; max-height:360px; overflow-y:auto;
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+        border-radius:var(--db-radius-md); box-shadow:0 16px 40px rgba(0,0,0,0.35);
+        padding:8px; display:none; z-index:60;
+      }
+      .db-account-panel.db-open{ display:block; }
+      .db-account-panel-header{ padding:8px 10px; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--eva-text-dim); }
+      .db-account-panel-footer{ padding:8px; border-top:1px solid var(--eva-border); margin-top:4px; }
+
+      /* ---------------------------------------------------------
+         2. EQUITY OVERVIEW
+         --------------------------------------------------------- */
+      .db-equity-card{ display:flex; flex-direction:column; gap:16px; }
+      .db-equity-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+      .db-equity-headline{ display:flex; flex-direction:column; gap:6px; }
+      .db-equity-value{ font-size:2.3rem; line-height:1; }
+      .db-equity-change{
+        display:inline-flex; align-items:center; gap:5px; width:fit-content;
+        padding:3px 10px; border-radius:999px; font-size:0.74rem; font-weight:700;
+        background:var(--eva-surface-2); color:var(--eva-text-dim); border:1px solid var(--eva-border);
+      }
+      .db-equity-change svg{ width:12px; height:12px; stroke:currentColor; fill:none; stroke-width:2.5; }
+      .db-equity-controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+      .db-pill-switch{ display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--eva-surface-2); border:1px solid var(--eva-border); }
+      .db-pill-switch button{ padding:6px 13px; border-radius:999px; font-size:0.74rem; font-weight:700; color:var(--eva-text-dim); background:transparent; border:none; }
+      .db-pill-switch button.db-active{ background:var(--eva-surface); color:var(--eva-text); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+      .db-icon-controls{ display:flex; gap:6px; }
+
+      .db-chart-canvas{
+        width:100%; height:320px; border-radius:var(--db-radius-md);
+        background:linear-gradient(180deg, var(--eva-surface-2) 0%, transparent 100%);
+        position:relative; overflow:hidden;
+      }
+      .db-chart-canvas.db-chart-md{ height:220px; }
+      .db-chart-canvas .db-echart-mount{ width:100%; height:100%; display:block; }
+      .db-chart-canvas.db-chart-expanded{
+        position:fixed; inset:20px; z-index:1100; height:auto; min-height:calc(100dvh - 40px);
+        box-shadow:0 24px 80px rgba(0,0,0,.35);
+      }
+      @media (max-width:640px){ .db-chart-canvas.db-chart-expanded{ inset:10px; min-height:calc(100dvh - 20px); } }
+      .db-chart-tooltip-area{ position:absolute; inset:0; pointer-events:none; }
+      .db-chart-empty{
+        position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:6px; text-align:center; padding:0 20px; color:var(--eva-text-dim); pointer-events:none;
+      }
+      .db-chart-empty svg{ width:26px; height:26px; stroke:var(--eva-text-dim); fill:none; stroke-width:1.6; }
+      .db-chart-empty span{ font-size:0.78rem; max-width:280px; }
+
+      /* ---------------------------------------------------------
+         3. KEY PERFORMANCE METRIC CARDS
+         --------------------------------------------------------- */
+      .db-metric-card{ display:flex; flex-direction:column; gap:8px; }
+      .db-metric-top{ display:flex; align-items:center; justify-content:space-between; }
+      .db-metric-icon{ width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--eva-surface-2); color:var(--eva-text-dim); flex-shrink:0; }
+      .db-metric-icon svg{ width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; }
+      .db-metric-value{ font-size:1.5rem; }
+      .db-metric-foot{ font-size:0.72rem; color:var(--eva-text-dim); }
+
+      /* ---------------------------------------------------------
+         4. PERFORMANCE FILTERS
+         --------------------------------------------------------- */
+      .db-filters-card{ display:flex; flex-direction:column; gap:14px; }
+      .db-range-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+      .db-range-btn{
+        padding:7px 14px; border-radius:999px; font-size:0.78rem; font-weight:700;
+        background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text-dim);
+      }
+      .db-range-btn.db-active{ background:var(--eva-gradient); color:#fff; border-color:transparent; }
+      .db-adv-filters{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+      @media (max-width:1100px){ .db-adv-filters{ grid-template-columns:repeat(3,1fr); } }
+      @media (max-width:640px){ .db-adv-filters{ grid-template-columns:repeat(2,1fr); } }
+      .db-field{ display:flex; flex-direction:column; gap:5px; }
+      .db-field label{ font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--eva-text-dim); }
+      .db-field select,.db-field input{
+        width:100%; padding:9px 10px; border-radius:var(--db-radius-sm);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text);
+        font-size:0.82rem;
+      }
+
+      /* ---------------------------------------------------------
+         5. SECONDARY CHARTS
+         --------------------------------------------------------- */
+      .db-chart-card{ display:flex; flex-direction:column; gap:12px; }
+      .db-chart-card-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+      .db-chart-card-head h3{ font-family:var(--eva-font-display); font-size:0.9rem; font-weight:700; }
+
+      /* ---------------------------------------------------------
+         6. TRADING CALENDAR
+         --------------------------------------------------------- */
+      .db-cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:10px; }
+      .db-cal-nav{ display:flex; align-items:center; gap:10px; }
+      .db-cal-nav button{ width:30px; height:30px; border-radius:8px; background:var(--eva-surface-2); border:1px solid var(--eva-border); display:flex; align-items:center; justify-content:center; }
+      .db-cal-nav button svg{ width:15px; height:15px; stroke:var(--eva-text); fill:none; stroke-width:2; }
+      .db-cal-title{ font-family:var(--eva-font-display); font-weight:700; font-size:0.92rem; min-width:130px; text-align:center; }
+      .db-cal-today-btn{ padding:6px 12px; border-radius:999px; font-size:0.72rem; font-weight:700; background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text-dim); }
+
+      .db-cal-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; max-width:100%; }
+      .db-cal-dow{ text-align:center; font-size:0.68rem; font-weight:700; color:var(--eva-text-dim); text-transform:uppercase; padding-bottom:4px; }
+      .db-cal-day{
+        position:relative; min-height:64px; padding:6px; border-radius:var(--db-radius-sm);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        display:flex; flex-direction:column; gap:2px; min-width:0; overflow:hidden;
+        cursor:pointer; transition:border-color .15s var(--eva-ease);
+      }
+      .db-cal-day:hover{ border-color:var(--eva-accent-1); }
+      .db-cal-day.db-cal-empty{ background:transparent; border-color:transparent; cursor:default; pointer-events:none; }
+      .db-cal-day .db-cal-date{ font-weight:700; color:var(--eva-text-dim); font-size:0.68rem; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .db-cal-day.db-cal-today{ box-shadow:0 0 0 2px var(--eva-accent-1) inset; }
+      .db-cal-day.db-cal-today .db-cal-date{ color:var(--eva-text); }
+      .db-cal-day.db-cal-profit{ background:var(--db-pos-bg); border-color:var(--db-pos-border); }
+      .db-cal-day.db-cal-profit .db-cal-date{ color:var(--db-pos); }
+      .db-cal-day.db-cal-loss{ background:var(--db-neg-bg); border-color:var(--db-neg-border); }
+      .db-cal-day.db-cal-loss .db-cal-date{ color:var(--db-neg); }
+      .db-cal-pl{ font-weight:700; font-size:0.72rem; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .db-cal-trades{ font-size:0.62rem; color:var(--eva-text-dim); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      @media (max-width:420px){ .db-cal-day{ min-height:48px; padding:4px; } .db-cal-pl{ font-size:0.6rem; } .db-cal-day .db-cal-date{ font-size:0.6rem; } .db-cal-trades{ display:none; } }
+
+      .db-cal-legend{ display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-size:0.74rem; color:var(--eva-text-dim); }
+      .db-cal-legend span{ display:inline-flex; align-items:center; gap:6px; }
+      .db-cal-legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+
+      /* ---------------------------------------------------------
+         7. DAY DETAIL MODAL
+         --------------------------------------------------------- */
+      .db-modal-overlay{
+        position:fixed; inset:0; z-index:1200;
+        display:none; align-items:center; justify-content:center;
+        padding:20px; background:rgba(5,7,12,.55);
+        backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+        opacity:0; transition:opacity .22s ease;
+      }
+      .db-modal-overlay.db-modal-open{ display:flex; opacity:1; }
+      .db-modal{
+        width:min(100%,520px); max-height:calc(100dvh - 96px); overflow-y:auto;
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+        border-radius:22px; box-shadow:0 28px 90px rgba(0,0,0,.32);
+        transform:translateY(10px) scale(.98); transition:transform .22s ease;
+        overscroll-behavior:contain;
+      }
+      .db-modal-overlay.db-modal-open .db-modal{ transform:translateY(0) scale(1); }
+      .db-modal-head{
+        display:flex; align-items:center; justify-content:space-between;
+        gap:10px; padding:18px 20px; border-bottom:1px solid var(--eva-border);
+        position:sticky; top:0; background:var(--eva-surface); z-index:2;
+      }
+      .db-modal-title{ font-family:var(--eva-font-display); font-size:1.05rem; font-weight:700; }
+      .db-modal-close{
+        width:32px; height:32px; border-radius:50%; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text);
+      }
+      .db-modal-close:hover{ background:var(--db-neg-bg); color:var(--db-neg); border-color:var(--db-neg-border); }
+      .db-modal-close svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+      .db-modal-body{ padding:20px; display:flex; flex-direction:column; gap:16px; }
+      .db-modal-foot{
+        display:flex; justify-content:flex-end; gap:10px; padding:14px 20px;
+        border-top:1px solid var(--eva-border); position:sticky; bottom:0; background:var(--eva-surface); z-index:2;
+      }
+
+      .db-day-summary{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+      @media (max-width:480px){ .db-day-summary{ grid-template-columns:repeat(2,1fr); } }
+      .db-day-stat{ background:var(--eva-surface-2); border-radius:var(--db-radius-sm); padding:12px 10px; text-align:center; }
+      .db-day-stat .db-num{ font-size:1.1rem; display:block; }
+      .db-day-stat .db-label{ margin-top:3px; display:block; }
+
+      .db-day-trades-list{ display:flex; flex-direction:column; gap:8px; }
+      .db-trade-row{
+        display:flex; align-items:center; justify-content:space-between; gap:10px;
+        padding:10px 12px; border-radius:var(--db-radius-sm); background:var(--eva-surface-2); border:1px solid var(--eva-border);
+      }
+      .db-trade-symbol{ font-weight:700; font-size:0.86rem; }
+      .db-trade-meta{ font-size:0.72rem; color:var(--eva-text-dim); }
+      .db-trade-pl{ font-weight:700; font-size:0.88rem; }
+
+      @media (min-width:900px){ .db-wrap{ padding-top:4px; } }
+    </style>
+
+    <div class="db-wrap" id="eva-dashboard" data-account-id="">
+
+      <!-- =====================================================
+           TOP DASHBOARD AREA — account selector + controls
+           ===================================================== -->
+      <div class="db-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Your trading performance at a glance.</p>
+        </div>
+
+        <div class="db-header-actions">
+          <div class="db-account-dropdown" id="dashboard-account-selector">
+            <button class="db-account-trigger" id="db-account-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="db-account-trigger-icon">
+                <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 14h.01"/><path d="M4 7V5a2 2 0 0 1 2-2h12"/></svg>
+              </span>
+              <span class="db-account-trigger-info">
+                <span class="db-account-trigger-name" data-value="account-name">Select account</span>
+                <span class="db-account-trigger-meta" data-value="account-balance">&nbsp;</span>
+              </span>
+              <svg class="db-account-trigger-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            <div class="db-account-panel" id="db-account-panel" role="listbox">
+              <div class="db-account-panel-header">Your Accounts</div>
+              <div id="db-account-list">
+                <div class="db-empty" style="padding:18px 10px;">
+                  <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/></svg>
+                  <span>No accounts yet</span>
+                </div>
+              </div>
+              <div class="db-account-panel-footer">
+                <a class="db-btn db-btn-primary" href="challenge.html" style="width:100%; justify-content:center;">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Account
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <button class="db-btn db-btn-icon" id="db-refresh-btn" type="button" aria-label="Refresh dashboard">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           EQUITY OVERVIEW
+           ===================================================== -->
+      <div class="db-section">
+        <div class="db-card db-equity-card">
+          <div class="db-equity-top">
+            <div class="db-equity-headline">
+              <span class="db-label">Equity</span>
+              <span class="db-num db-equity-value" data-value="equity">—</span>
+              <span class="db-equity-change" data-value="equity-change">
+                <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+                <span data-value="equity-change-amount">No data yet</span>
+              </span>
+            </div>
+            <div class="db-equity-controls">
+              <div class="db-pill-switch" id="equity-timeframe-switch">
+                <button class="db-active" data-timeframe="1D">1D</button>
+                <button data-timeframe="1W">1W</button>
+                <button data-timeframe="1M">1M</button>
+                <button data-timeframe="3M">3M</button>
+                <button data-timeframe="YTD">YTD</button>
+                <button data-timeframe="ALL">ALL</button>
+              </div>
+              <div class="db-icon-controls">
+                <button class="db-btn db-btn-icon" type="button" aria-label="Download chart">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+                <button class="db-btn db-btn-icon" type="button" aria-label="Expand chart">
+                  <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="db-chart-canvas" id="equity-chart">
+            <div class="db-chart-tooltip-area"></div>
+            <div class="db-chart-empty">
+              <svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+              <span>Your equity curve will appear here once trades are logged.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           KEY PERFORMANCE METRICS
+           ===================================================== -->
+      <div class="db-section" id="key-performance">
+        <div class="db-section-head">
+          <div class="db-section-title">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+            Key Performance
+          </div>
+        </div>
+        <div class="db-grid db-grid-4">
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Balance</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="balance">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Total P/L</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="total-pl">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Equity</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><polyline points="17 7 21 7 21 11"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="equity-card">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Win Rate</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="win-rate">—</div>
+            <div class="db-metric-foot">Win rate across all trades</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Total Trades</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="total-trades">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Profit Factor</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><path d="M8 4h8l1 4-5 3-5-3 1-4z"/><path d="M12 11v9M8 20h8"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="profit-factor">—</div>
+            <div class="db-metric-foot">Gross win ÷ gross loss</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Average Win</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><polyline points="17 6 23 6 23 12"/><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="avg-win">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Average Loss</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><polyline points="17 18 23 18 23 12"/><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="avg-loss">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Drawdown</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><path d="M22 22H2V2"/><path d="M4 18l6-8 4 3 6-9"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="drawdown">—</div>
+            <div class="db-metric-foot">Maximum peak-to-trough decline</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Recovery Factor</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="recovery-factor">—</div>
+            <div class="db-metric-foot">Net profit ÷ max drawdown</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Best Day</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="best-day">—</div>
+          </div>
+
+          <div class="db-card db-metric-card">
+            <div class="db-metric-top"><span class="db-label">Worst Day</span>
+              <span class="db-metric-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3" transform="rotate(180 12 12)"/></svg></span>
+            </div>
+            <div class="db-metric-value db-num" data-value="worst-day">—</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =====================================================
+           PERFORMANCE FILTERS
+           ===================================================== -->
+      <div class="db-section" id="performance-filters">
+        <div class="db-section-head">
+          <div class="db-section-title">
+            <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            Filters
+          </div>
+        </div>
+        <div class="db-card db-filters-card">
+          <div class="db-range-row" id="filter-range" role="group" aria-label="Date range">
+            <button class="db-range-btn db-active" data-range="today" type="button">Today</button>
+            <button class="db-range-btn" data-range="week" type="button">Week</button>
+            <button class="db-range-btn" data-range="month" type="button">Month</button>
+            <button class="db-range-btn" data-range="year" type="button">Year</button>
+            <button class="db-range-btn" data-range="custom" type="button">Custom</button>
+          </div>
+          <div class="db-adv-filters">
+            <div class="db-field">
+              <label for="filter-account">Account</label>
+              <select id="filter-account"><option value="">All accounts</option></select>
+            </div>
+            <div class="db-field">
+              <label for="filter-strategy">Strategy</label>
+              <select id="filter-strategy"><option value="">All strategies</option></select>
+            </div>
+            <div class="db-field">
+              <label for="filter-session">Session</label>
+              <select id="filter-session"><option value="">All sessions</option></select>
+            </div>
+            <div class="db-field">
+              <label for="filter-result">Trade Result</label>
+              <select id="filter-result">
+                <option value="">All results</option>
+                <option value="win">Wins</option>
+                <option value="loss">Losses</option>
+                <option value="be">Break-even</option>
+              </select>
+            </div>
+            <div class="db-field">
+              <label for="filter-symbol">Symbol</label>
+              <input id="filter-symbol" type="text" placeholder="e.g. NQ">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           PERFORMANCE CHARTS
+           ===================================================== -->
+      <div class="db-section" id="performance-charts">
+        <div class="db-section-head">
+          <div class="db-section-title">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+            Performance Charts
+          </div>
+        </div>
+        <div class="db-grid db-grid-2">
+
+          <div class="db-card db-chart-card">
+            <div class="db-chart-card-head"><h3>Daily P/L</h3></div>
+            <div class="db-chart-canvas db-chart-md" id="daily-pl-chart">
+              <div class="db-chart-empty">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="12" x2="8" y2="17"/><line x1="12" y1="8" x2="12" y2="17"/><line x1="16" y1="14" x2="16" y2="17"/></svg>
+                <span>Daily P/L will appear once trades are logged.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="db-card db-chart-card">
+            <div class="db-chart-card-head"><h3>Drawdown</h3></div>
+            <div class="db-chart-canvas db-chart-md" id="drawdown-chart">
+              <div class="db-chart-empty">
+                <svg viewBox="0 0 24 24"><path d="M22 22H2V2"/><path d="M4 18l6-8 4 3 6-9"/></svg>
+                <span>Drawdown history will appear once trades are logged.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="db-card db-chart-card">
+            <div class="db-chart-card-head"><h3>Challenge / Goal Progress</h3></div>
+            <div class="db-chart-canvas db-chart-md" id="challenge-progress-chart">
+              <div class="db-chart-empty">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span>Goal progress will appear once an account is linked.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="db-card db-chart-card">
+            <div class="db-chart-card-head"><h3>Growth</h3></div>
+            <div class="db-chart-canvas db-chart-md" id="growth-chart">
+              <div class="db-chart-empty">
+                <svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+                <span>Account growth will appear once trades are logged.</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =====================================================
+           TRADING CALENDAR
+           ===================================================== -->
+      <div class="db-section" id="trading-calendar">
+        <div class="db-section-head">
+          <div class="db-section-title">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Trading Calendar
+          </div>
+          <button class="db-cal-today-btn" id="calendar-today-btn" type="button">Today</button>
+        </div>
+        <div class="db-card">
+          <div class="db-cal-head">
+            <div class="db-cal-nav">
+              <button id="calendar-prev-btn" type="button" aria-label="Previous month"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <span class="db-cal-title" id="calendar-title">—</span>
+              <button id="calendar-next-btn" type="button" aria-label="Next month"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+            </div>
+          </div>
+          <div class="db-cal-grid">
+            <div class="db-cal-dow">Sun</div><div class="db-cal-dow">Mon</div><div class="db-cal-dow">Tue</div><div class="db-cal-dow">Wed</div><div class="db-cal-dow">Thu</div><div class="db-cal-dow">Fri</div><div class="db-cal-dow">Sat</div>
+          </div>
+          <div class="db-cal-grid" id="calendar-grid" style="margin-top:6px;">
+            <!-- Day cells rendered by the script below: real calendar
+                 dates only, no trading data. data-pl / data-trades stay
+                 empty for Phase 2 to populate. -->
+          </div>
+          <div class="db-cal-legend">
+            <span><i style="background:var(--db-pos)"></i>Profitable day</span>
+            <span><i style="background:var(--db-neg)"></i>Loss day</span>
+            <span><i style="background:var(--eva-surface-2); border:1px solid var(--eva-border);"></i>No trades</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           DAY DETAIL MODAL
+           ===================================================== -->
+      <div class="db-modal-overlay" id="calendar-day-modal" data-modal="calendar-day-modal" aria-hidden="true">
+        <div class="db-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-day-modal-title">
+          <div class="db-modal-head">
+            <h2 class="db-modal-title" id="calendar-day-modal-title">
+              <span id="calendar-day-modal-date">Select a day</span>
+            </h2>
+            <button type="button" class="db-modal-close" data-modal-close aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="db-modal-body">
+            <div class="db-day-summary">
+              <div class="db-day-stat">
+                <span class="db-num" data-value="day-pl">—</span>
+                <span class="db-label">P/L</span>
+              </div>
+              <div class="db-day-stat">
+                <span class="db-num" data-value="day-trades">—</span>
+                <span class="db-label">Trades</span>
+              </div>
+              <div class="db-day-stat">
+                <span class="db-num" data-value="day-wins">—</span>
+                <span class="db-label">Wins</span>
+              </div>
+              <div class="db-day-stat">
+                <span class="db-num" data-value="day-losses">—</span>
+                <span class="db-label">Losses</span>
+              </div>
+            </div>
+            <div class="db-day-stat" style="text-align:left;">
+              <span class="db-num" data-value="day-be">—</span>
+              <span class="db-label">Break-even trades</span>
+            </div>
+
+            <div class="db-day-trades-list" id="calendar-day-trades">
+              <div class="db-empty">
+                <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+                <strong>No trades for this day</strong>
+                <span>Trades you log for this date will show up here.</span>
+              </div>
+            </div>
+
+            <!-- Hidden template Phase 2 can clone per trade — kept in the
+                 DOM now so no markup needs inventing later. Not rendered. -->
+            <template id="calendar-day-trade-template">
+              <div class="db-trade-row">
+                <div>
+                  <div class="db-trade-symbol" data-field="symbol"></div>
+                  <div class="db-trade-meta">
+                    <span data-field="direction"></span> ·
+                    <span data-field="strategy"></span> ·
+                    <span data-field="session"></span> ·
+                    <span data-field="time"></span>
+                  </div>
+                  <div class="db-trade-meta">
+                    Entry <span data-field="entry"></span> → Exit <span data-field="exit"></span> ·
+                    Risk <span data-field="risk"></span> · <span data-field="r-multiple"></span>R
+                  </div>
+                </div>
+                <div class="db-trade-pl" data-field="pl"></div>
+              </div>
+            </template>
+          </div>
+          <div class="db-modal-foot">
+            <button type="button" class="db-btn" data-modal-close>Close</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Dashboard runtime dependencies. These scripts live inside the template so
+         eva-loader can safely recreate them after the page content is mounted. -->
+    <script type="module" src="dashboard.js"></script>
+  </template>
+
+  <script src="eva-loader.js"></script>
+</body>
+</html>

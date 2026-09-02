@@ -1,0 +1,1619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>settings — EVA</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+
+  <template id="eva-page-content">
+    <!-- ONLY this page's unique content goes here -->
+
+    <style>
+      /* ============================================================
+         SETTINGS PAGE STYLES
+         Uses existing site theme variables with safe fallbacks so the
+         page automatically follows the site's Light/Dark mode.
+         No new theme engine is created here.
+      ============================================================ */
+
+      .settings-page {
+        /* ----------------------------------------------------------
+           THEME BRIDGE — maps this page's existing local variable
+           names onto the site's real EVA theme tokens (defined in
+           the shared layout under html[data-eva-theme="light"/"dark"]).
+           This is the ONLY reason the page was rendering the same
+           hardcoded dark fallback colors in both themes: these local
+           names were never actually connected to the live theme
+           tokens, so every rule below was silently using its
+           fallback value. No new theme system — just wiring the
+           page's existing variable names to the existing engine.
+        ---------------------------------------------------------- */
+        --text-primary: var(--eva-text);
+        --text-secondary: var(--eva-text-dim);
+        --text-muted: var(--eva-text-dim);
+        --bg-card: var(--eva-surface);
+        --bg-input: var(--eva-surface-2);
+        --border-color: var(--eva-border);
+        --accent: var(--eva-accent-1);
+        --danger: #ef4444;
+        --font-family: var(--eva-font-body);
+        --radius-lg: 14px;
+        --radius-md: 10px;
+
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px 16px 100px;
+        color: var(--text-primary, #e6e8ec);
+        font-family: var(--font-family, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+        box-sizing: border-box;
+      }
+      .settings-page * { box-sizing: border-box; }
+      /* Theme-safe explicit mapping. The shared layout owns the actual
+         theme and exposes these tokens through html[data-eva-theme]. */
+      html[data-eva-theme="light"] .settings-page {
+        --text-primary: var(--eva-text);
+        --text-secondary: var(--eva-text-dim);
+        --text-muted: var(--eva-text-dim);
+        --bg-card: var(--eva-surface);
+        --bg-input: var(--eva-surface-2);
+        --border-color: var(--eva-border);
+      }
+      html[data-eva-theme="dark"] .settings-page {
+        --text-primary: var(--eva-text);
+        --text-secondary: var(--eva-text-dim);
+        --text-muted: var(--eva-text-dim);
+        --bg-card: var(--eva-surface);
+        --bg-input: var(--eva-surface-2);
+        --border-color: var(--eva-border);
+      }
+      .settings-page, .settings-page * { color-scheme: inherit; }
+      .settings-page .settings-card,
+      .settings-page .option-category,
+      .settings-page .modal-box { background: var(--bg-card) !important; color: var(--text-primary) !important; }
+      .settings-page input, .settings-page select, .settings-page textarea,
+      .settings-page .option-chip, .settings-page .id-chip, .settings-page .segmented {
+        background: var(--bg-input) !important; color: var(--text-primary) !important;
+        border-color: var(--border-color) !important;
+      }
+      .settings-page label, .settings-page p, .settings-page .field-hint,
+      .settings-page .settings-section-desc, .settings-page .action-text span,
+      .settings-page .avatar-hint { color: var(--text-secondary) !important; }
+      .settings-page h1, .settings-page h2, .settings-page h3,
+      .settings-page strong, .settings-page .settings-section-title,
+      .settings-page .action-text strong, .settings-page .option-chip { color: var(--text-primary) !important; }
+      .avatar-circle img { width:100%; height:100%; object-fit:cover; display:block; }
+
+
+      /* Native <select> popup (option list) follows the current
+         theme instead of always rendering with OS-default (often
+         light/hard-to-read-in-dark-mode) colors. */
+      html[data-eva-theme="light"] .settings-page select { color-scheme: light; }
+      html[data-eva-theme="dark"] .settings-page select { color-scheme: dark; }
+
+      /* Chrome/Safari autofill was painting a hardcoded yellow
+         background on inputs regardless of theme — this was the
+         "yellow card/field" bug. Force autofilled fields to keep
+         using the theme's own input background and text color. */
+      .settings-page input:-webkit-autofill,
+      .settings-page input:-webkit-autofill:hover,
+      .settings-page input:-webkit-autofill:focus,
+      .settings-page input:-webkit-autofill:active {
+        -webkit-text-fill-color: var(--text-primary);
+        box-shadow: 0 0 0 1000px var(--bg-input) inset;
+        -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset;
+        caret-color: var(--text-primary);
+        transition: background-color 9999s ease-in-out 0s;
+      }
+
+      .settings-header {
+        margin-bottom: 24px;
+      }
+      .settings-header h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0 0 4px;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .settings-header p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--text-secondary, #9aa0ab);
+      }
+
+      /* ---------- Section Wrapper ---------- */
+      .settings-section {
+        margin-bottom: 28px;
+      }
+      .settings-section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .settings-section-title .icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 27px;
+        height: 27px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(59,130,246,.20), rgba(59,130,246,.08));
+        border: 1px solid rgba(59,130,246,.25);
+        color: var(--accent, #3b82f6);
+        flex-shrink: 0;
+      }
+      .settings-section-title .icon svg {
+        width: 15px;
+        height: 15px;
+        display: block;
+      }
+      .settings-section-desc {
+        font-size: 13px;
+        color: var(--text-secondary, #9aa0ab);
+        margin: 0 0 12px;
+      }
+
+      /* ---------- Card ---------- */
+      .settings-card {
+        background: var(--bg-card, #14161c);
+        border: 1px solid var(--border-color, #23262f);
+        border-radius: var(--radius-lg, 14px);
+        padding: 20px;
+      }
+      .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 760px) {
+        .settings-grid { grid-template-columns: 1fr; }
+      }
+
+      /* ---------- Form elements ---------- */
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 16px;
+      }
+      .field label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text-secondary, #9aa0ab);
+      }
+      .field input[type="text"],
+      .field input[type="email"],
+      .field input[type="number"],
+      .field input[type="password"],
+      .field input[type="time"],
+      .field select {
+        width: 100%;
+        background: var(--bg-input, #1b1e26);
+        border: 1px solid var(--border-color, #2a2e38);
+        color: var(--text-primary, #f2f3f5);
+        border-radius: var(--radius-md, 10px);
+        padding: 11px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color .15s ease;
+      }
+      .field input:focus,
+      .field select:focus {
+        border-color: var(--accent, #3b82f6);
+      }
+      .field input::placeholder { color: var(--text-muted, #6b7280); }
+      .field-readonly input {
+        opacity: .7;
+        cursor: not-allowed;
+      }
+      .field-hint {
+        font-size: 11.5px;
+        color: var(--text-muted, #6b7280);
+      }
+      select {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                           linear-gradient(135deg, currentColor 50%, transparent 50%);
+        background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+        background-size: 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+        color: var(--text-primary, #f2f3f5);
+        padding-right: 32px;
+      }
+
+      /* ---------- Buttons ---------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+        padding: 10px 16px;
+        border-radius: var(--radius-md, 10px);
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-family: inherit;
+        white-space: nowrap;
+        transition: filter .15s ease, background .15s ease, border-color .15s ease;
+      }
+      .btn:hover { filter: brightness(1.08); }
+      .btn:active { filter: brightness(.95); }
+
+      .btn-primary {
+        background: var(--accent, #3b82f6);
+        color: #fff;
+      }
+      .btn-secondary {
+        background: var(--bg-input, #1b1e26);
+        border-color: var(--border-color, #2a2e38);
+        color: var(--text-primary, #f2f3f5);
+      }
+      .btn-ghost {
+        background: transparent;
+        border-color: var(--border-color, #2a2e38);
+        color: var(--text-secondary, #9aa0ab);
+      }
+      .btn-danger {
+        background: rgba(239, 68, 68, .12);
+        border-color: rgba(239, 68, 68, .35);
+        color: #f87171;
+      }
+      .btn-danger-solid {
+        background: var(--danger, #ef4444);
+        color: #fff;
+      }
+      .btn-sm { padding: 7px 12px; font-size: 12.5px; }
+      .btn-block { width: 100%; }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+      }
+
+      /* ---------- Profile ---------- */
+      .profile-layout {
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      @media (max-width: 640px) {
+        .profile-layout { flex-direction: column; align-items: center; text-align: center; }
+      }
+      .avatar-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .avatar-circle {
+        width: 88px;
+        height: 88px;
+        border-radius: 50%;
+        background: var(--bg-input, #1b1e26);
+        border: 1px solid var(--border-color, #2a2e38);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        color: var(--text-secondary, #9aa0ab);
+        overflow: hidden;
+      }
+      .avatar-circle img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .avatar-hint {
+        font-size: 11px;
+        color: var(--text-muted, #6b7280);
+        text-align: center;
+      }
+      .link-btn {
+        background: none;
+        border: none;
+        color: var(--accent, #3b82f6);
+        font-size: 12.5px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+      }
+      .profile-fields { flex: 1; width: 100%; }
+      .id-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        background: var(--bg-input, #1b1e26);
+        border: 1px solid var(--border-color, #2a2e38);
+        color: var(--text-secondary, #9aa0ab);
+        padding: 8px 10px;
+        border-radius: var(--radius-md, 10px);
+      }
+
+      /* ---------- Toggle switch ---------- */
+      .switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color, #23262f);
+        gap: 16px;
+      }
+      .switch-row:last-child { border-bottom: none; }
+      .switch-text strong {
+        display: block;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .switch-text span {
+        display: block;
+        font-size: 12px;
+        color: var(--text-muted, #6b7280);
+        margin-top: 2px;
+      }
+      .switch {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .switch-track {
+        position: absolute;
+        inset: 0;
+        background: var(--bg-input, #2a2e38);
+        border: 1px solid var(--border-color, #333844);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background .15s ease;
+      }
+      .switch-track::before {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        left: 2px;
+        top: 2px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform .15s ease;
+      }
+      .switch input:checked + .switch-track {
+        background: var(--accent, #3b82f6);
+      }
+      .switch input:checked + .switch-track::before {
+        transform: translateX(18px);
+      }
+
+      /* ---------- Segmented control (Appearance / Direction) ---------- */
+      .segmented {
+        display: flex;
+        background: var(--bg-input, #1b1e26);
+        border: 1px solid var(--border-color, #2a2e38);
+        border-radius: var(--radius-md, 10px);
+        padding: 4px;
+        gap: 4px;
+      }
+      .segmented label {
+        flex: 1;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 9px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: var(--text-secondary, #9aa0ab);
+        transition: background .15s ease, color .15s ease;
+      }
+      .segmented input { display: none; }
+      .segmented input:checked + label {
+        background: var(--accent, #3b82f6);
+        color: #fff;
+      }
+
+      /* ---------- Journal Options ---------- */
+      .journal-options-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 860px) {
+        .journal-options-grid { grid-template-columns: 1fr; }
+      }
+      .option-category {
+        background: var(--bg-card, #14161c);
+        border: 1px solid var(--border-color, #23262f);
+        border-radius: var(--radius-lg, 14px);
+        padding: 16px;
+      }
+      .option-category-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .option-category-header h3 {
+        font-size: 13.5px;
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .option-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted, #6b7280);
+        background: var(--bg-input, #1b1e26);
+        border: 1px solid var(--border-color, #2a2e38);
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+      .option-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .option-chip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg-input, #1b1e26);
+        border: 1px solid var(--border-color, #2a2e38);
+        border-radius: var(--radius-md, 10px);
+        padding: 9px 10px 9px 12px;
+        font-size: 13px;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .option-chip-actions {
+        display: flex;
+        gap: 4px;
+      }
+      .icon-btn {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--text-secondary, #9aa0ab);
+        transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .icon-btn .icon-svg {
+        width: 14px;
+        height: 14px;
+        display: block;
+        pointer-events: none;
+      }
+      .icon-btn:hover {
+        background: var(--bg-card, #14161c);
+        border-color: var(--border-color, #2a2e38);
+        color: var(--text-primary, #f2f3f5);
+      }
+      .icon-btn:active {
+        transform: scale(.94);
+      }
+      .icon-btn:focus-visible {
+        outline: 2px solid var(--accent, #3b82f6);
+        outline-offset: 1px;
+      }
+      .icon-btn.danger:hover {
+        color: #f87171;
+        border-color: rgba(239, 68, 68, .35);
+        background: rgba(239, 68, 68, .08);
+      }
+      /* Larger, easier-to-tap targets on touch screens */
+      @media (hover: none) and (pointer: coarse) {
+        .icon-btn {
+          width: 34px;
+          height: 34px;
+        }
+      }
+      .add-option-btn {
+        width: 100%;
+        justify-content: center;
+        border: 1px dashed var(--border-color, #2a2e38);
+        background: transparent;
+        color: var(--accent, #3b82f6);
+      }
+      .add-option-btn:hover {
+        background: var(--bg-input, #1b1e26);
+      }
+      .add-option-btn .icon-svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+
+      /* ---------- Create Custom Option ---------- */
+      .create-custom-option-wrap {
+        margin-top: 16px;
+      }
+      .create-custom-option-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 13px 16px;
+        border: 1px dashed var(--accent, #3b82f6);
+        background: rgba(59, 130, 246, .06);
+        color: var(--accent, #3b82f6);
+        font-size: 13.5px;
+      }
+      .create-custom-option-btn:hover {
+        background: rgba(59, 130, 246, .12);
+      }
+      .create-custom-option-btn .icon-svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+
+      /* ---------- Data & Backup rows ---------- */
+      .action-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border-color, #23262f);
+      }
+      .action-row:last-child { border-bottom: none; }
+      .action-text strong {
+        display: block;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .action-text span {
+        display: block;
+        font-size: 12px;
+        color: var(--text-muted, #6b7280);
+        margin-top: 2px;
+      }
+
+      /* ---------- Danger zone ---------- */
+      .danger-zone {
+        border: 1px solid rgba(239, 68, 68, .3);
+        background: rgba(239, 68, 68, .05);
+        border-radius: var(--radius-lg, 14px);
+        padding: 20px;
+        margin-top: 16px;
+      }
+      .danger-zone-title {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #f87171;
+        margin-bottom: 4px;
+      }
+      .danger-zone-desc {
+        font-size: 12.5px;
+        color: var(--text-muted, #6b7280);
+        margin: 0 0 14px;
+      }
+
+      /* ---------- Logout ---------- */
+      .logout-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .logout-card p {
+        margin: 2px 0 0;
+        font-size: 12.5px;
+        color: var(--text-muted, #6b7280);
+      }
+      .logout-card .btn .icon-svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+      }
+
+      .divider-space { height: 4px; }
+
+      /* ============================================================
+         MODALS
+         Shared structure for Create Custom Option + Logout confirm.
+         Hidden by default via the [hidden] attribute; future JS
+         toggles this attribute to open/close.
+      ============================================================ */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(6, 8, 12, .6);
+        backdrop-filter: blur(2px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 1000;
+      }
+      .modal-overlay[hidden] {
+        display: none !important;
+      }
+      .modal-box {
+        width: 100%;
+        max-width: 440px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        background: var(--bg-card, #14161c);
+        border: 1px solid var(--border-color, #23262f);
+        border-radius: var(--radius-lg, 14px);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, .45);
+        color: var(--text-primary, #f2f3f5);
+      }
+      .modal-box.modal-sm { max-width: 380px; }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border-color, #23262f);
+      }
+      .modal-header h2 {
+        margin: 0;
+        font-size: 15.5px;
+        font-weight: 700;
+        color: var(--text-primary, #f2f3f5);
+      }
+      .modal-close-btn {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        cursor: pointer;
+        color: var(--text-secondary, #9aa0ab);
+        flex-shrink: 0;
+        transition: background .15s ease, border-color .15s ease, color .15s ease;
+      }
+      .modal-close-btn:hover {
+        background: var(--bg-input, #1b1e26);
+        border-color: var(--border-color, #2a2e38);
+        color: var(--text-primary, #f2f3f5);
+      }
+      .modal-close-btn .icon-svg { width: 15px; height: 15px; }
+      .modal-body {
+        padding: 20px;
+      }
+      .modal-body p {
+        margin: 0 0 4px;
+        font-size: 13.5px;
+        color: var(--text-secondary, #9aa0ab);
+        line-height: 1.5;
+      }
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 16px 20px;
+        border-top: 1px solid var(--border-color, #23262f);
+      }
+      .modal-footer .btn { flex: 0 0 auto; }
+      @media (max-width: 480px) {
+        .modal-footer { flex-direction: column-reverse; }
+        .modal-footer .btn { width: 100%; }
+      }
+
+      /* Logout confirm modal specifics */
+      .modal-icon-badge {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(239, 68, 68, .12);
+        color: #f87171;
+        margin-bottom: 14px;
+      }
+      .modal-icon-badge .icon-svg { width: 22px; height: 22px; }
+
+      /* Create Custom Option modal specifics */
+      .custom-option-type-select {
+        width: 100%;
+      }
+      .custom-option-values-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 4px 0 10px;
+      }
+      .custom-option-value-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .custom-option-value-row input[type="text"] {
+        flex: 1;
+      }
+      .custom-option-add-value-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .custom-option-add-value-row input[type="text"] {
+        flex: 1;
+      }
+      .custom-option-empty-hint {
+        font-size: 12px;
+        color: var(--text-muted, #6b7280);
+        padding: 4px 0 8px;
+      }
+    </style>
+
+    <div class="settings-page">
+
+      <div class="settings-header">
+        <h1>Settings</h1>
+        <p>Manage your profile, trading preferences, and journal configuration.</p>
+      </div>
+
+      <!-- ============================================================
+           1. PROFILE
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-profile">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span> Profile</div>
+        <p class="settings-section-desc">Update your display name, photo, and account details.</p>
+
+        <div class="settings-card">
+          <div class="profile-layout">
+
+            <div class="avatar-block">
+              <div class="avatar-circle" id="profile-avatar-preview">
+                <span><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
+
+              </div>
+              <button type="button" class="link-btn" id="profile-upload-photo-btn">Change Photo</button>
+              <input type="file" id="profile-upload-photo-input" accept="image/*" hidden>
+              <span class="avatar-hint">JPG, PNG or WebP · max 5MB</span>
+            </div>
+
+            <div class="profile-fields">
+              <div class="settings-grid">
+                <div class="field" id="field-display-name">
+                  <label for="profile-display-name">Display Name</label>
+                  <input type="text" id="profile-display-name" name="displayName" placeholder="e.g. Nathnael T." value="">
+                </div>
+
+                <div class="field" id="field-username">
+                  <label for="profile-username">Username</label>
+                  <input type="text" id="profile-username" name="username" placeholder="e.g. nati_trades" value="">
+                </div>
+
+                <div class="field field-readonly" id="field-email">
+                  <label for="profile-email">Email</label>
+                  <input type="email" id="profile-email" name="email" value="" readonly>
+                  <span class="field-hint">Managed by your account provider</span>
+                </div>
+
+                <div class="field" id="field-user-id">
+                  <label>User ID</label>
+                  <span class="id-chip" id="profile-user-id">—</span>
+                </div>
+              </div>
+
+              <div class="btn-row">
+                <button type="button" class="btn btn-primary" id="profile-save-btn">Save Changes</button>
+                <button type="button" class="btn btn-ghost" id="profile-cancel-btn">Cancel</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           2. TRADING PREFERENCES
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-trading-preferences">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg></span> Trading Preferences</div>
+        <p class="settings-section-desc">Default values that pre-fill new journal entries.</p>
+
+        <div class="settings-card">
+          <div class="settings-grid">
+
+            <div class="field" id="field-default-instrument">
+              <label for="pref-default-instrument">Default Instrument</label>
+              <select id="pref-default-instrument" name="defaultInstrument">
+                <option value="NQ" selected>NQ — Nasdaq 100</option>
+                <option value="ES">ES — S&P 500</option>
+                <option value="EURUSD">EUR/USD</option>
+                <option value="GBPUSD">GBP/USD</option>
+                <option value="XAUUSD">XAU/USD — Gold</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+
+            <div class="field" id="field-default-session">
+              <label for="pref-default-session">Default Session</label>
+              <select id="pref-default-session" name="defaultSession">
+                <option value="asia">Asia</option>
+                <option value="london">London</option>
+                <option value="newyork" selected>New York</option>
+              </select>
+            </div>
+
+            <div class="field" id="field-default-timeframe">
+              <label for="pref-default-timeframe">Default Timeframe</label>
+              <select id="pref-default-timeframe" name="defaultTimeframe">
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+                <option value="15m" selected>15m</option>
+                <option value="1H">1H</option>
+                <option value="4H">4H</option>
+                <option value="D">Daily</option>
+              </select>
+            </div>
+
+            <div class="field" id="field-default-direction">
+              <label>Default Direction</label>
+              <div class="segmented">
+                <input type="radio" name="defaultDirection" id="dir-long" checked>
+                <label for="dir-long">Long</label>
+                <input type="radio" name="defaultDirection" id="dir-short">
+                <label for="dir-short">Short</label>
+              </div>
+            </div>
+
+            <div class="field" id="field-default-lot-size">
+              <label for="pref-default-lot-size">Default Lot Size</label>
+              <input type="number" id="pref-default-lot-size" name="defaultLotSize" step="0.01" min="0" placeholder="e.g. 0.10" value="0.10">
+            </div>
+
+            <div class="field" id="field-default-risk">
+              <label for="pref-default-risk">Default Risk %</label>
+              <input type="number" id="pref-default-risk" name="defaultRiskPercent" step="0.1" min="0" max="100" placeholder="e.g. 1.0" value="1.0">
+            </div>
+
+            <div class="field" id="field-account-currency">
+              <label for="pref-account-currency">Account Currency</label>
+              <select id="pref-account-currency" name="accountCurrency">
+                <option value="USD" selected>USD — US Dollar</option>
+                <option value="ETB">ETB — Ethiopian Birr</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="GBP">GBP — British Pound</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn btn-primary" id="preferences-save-btn">Save Preferences</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           3. JOURNAL OPTIONS
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-journal-options">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></span> Journal Options</div>
+        <p class="settings-section-desc">Manage the option lists used throughout your Journal entries.</p>
+
+        <div class="journal-options-grid">
+
+          <!-- Strategies -->
+          <div class="option-category" id="journal-option-strategies" data-option-category="strategies">
+            <div class="option-category-header">
+              <h3>Strategies</h3>
+              <span class="option-count">3</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="strategy-1">
+                <span>ICT Continuation</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="strategy-2">
+                <span>Turtle Soup</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="strategy-3">
+                <span>Breakout</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Strategy</span></button>
+          </div>
+
+          <!-- Setups -->
+          <div class="option-category" id="journal-option-setups" data-option-category="setups">
+            <div class="option-category-header">
+              <h3>Setups</h3>
+              <span class="option-count">3</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="setup-1">
+                <span>FVG</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="setup-2">
+                <span>Order Block</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="setup-3">
+                <span>Liquidity Sweep</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Setup</span></button>
+          </div>
+
+          <!-- Sessions -->
+          <div class="option-category" id="journal-option-sessions" data-option-category="sessions">
+            <div class="option-category-header">
+              <h3>Sessions</h3>
+              <span class="option-count">3</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="session-1">
+                <span>Asia</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="session-2">
+                <span>London</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="session-3">
+                <span>New York</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Session</span></button>
+          </div>
+
+          <!-- Market Conditions -->
+          <div class="option-category" id="journal-option-market-conditions" data-option-category="marketConditions">
+            <div class="option-category-header">
+              <h3>Market Conditions</h3>
+              <span class="option-count">3</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="condition-1">
+                <span>Trending</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="condition-2">
+                <span>Ranging</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="condition-3">
+                <span>Volatile</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Condition</span></button>
+          </div>
+
+          <!-- Timeframes -->
+          <div class="option-category" id="journal-option-timeframes" data-option-category="timeframes">
+            <div class="option-category-header">
+              <h3>Timeframes</h3>
+              <span class="option-count">6</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="tf-1">
+                <span>1m</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="tf-2">
+                <span>5m</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="tf-3">
+                <span>15m</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="tf-4">
+                <span>1H</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="tf-5">
+                <span>4H</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="tf-6">
+                <span>Daily</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Timeframe</span></button>
+          </div>
+
+          <!-- Emotions Before -->
+          <div class="option-category" id="journal-option-emotions-before" data-option-category="emotionsBefore">
+            <div class="option-category-header">
+              <h3>Emotions Before</h3>
+              <span class="option-count">4</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="emo-before-1">
+                <span>Calm</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-before-2">
+                <span>Confident</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-before-3">
+                <span>Nervous</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-before-4">
+                <span>Excited</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Emotion</span></button>
+          </div>
+
+          <!-- Emotions During -->
+          <div class="option-category" id="journal-option-emotions-during" data-option-category="emotionsDuring">
+            <div class="option-category-header">
+              <h3>Emotions During</h3>
+              <span class="option-count">4</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="emo-during-1">
+                <span>Patient</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-during-2">
+                <span>Nervous</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-during-3">
+                <span>Stressed</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-during-4">
+                <span>FOMO</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Emotion</span></button>
+          </div>
+
+          <!-- Emotions After -->
+          <div class="option-category" id="journal-option-emotions-after" data-option-category="emotionsAfter">
+            <div class="option-category-header">
+              <h3>Emotions After</h3>
+              <span class="option-count">4</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="emo-after-1">
+                <span>Satisfied</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-after-2">
+                <span>Relieved</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-after-3">
+                <span>Frustrated</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="emo-after-4">
+                <span>Regretful</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Emotion</span></button>
+          </div>
+
+          <!-- Lot Size Presets -->
+          <div class="option-category" id="journal-option-lot-size-presets" data-option-category="lotSizePresets">
+            <div class="option-category-header">
+              <h3>Lot Size Presets</h3>
+              <span class="option-count">3</span>
+            </div>
+            <div class="option-list">
+              <div class="option-chip" data-option-id="lot-1">
+                <span>0.05</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="lot-2">
+                <span>0.10</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+              <div class="option-chip" data-option-id="lot-3">
+                <span>0.20</span>
+                <div class="option-chip-actions">
+                  <button type="button" class="icon-btn" data-action="edit" title="Edit" aria-label="Edit option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>
+                  <button type="button" class="icon-btn danger" data-action="open-delete-confirm" data-confirm-type="option" title="Delete" aria-label="Delete option"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Lot Size</span></button>
+          </div>
+
+          <!-- Entry Price Presets -->
+          <div class="option-category" id="journal-option-entry-price-presets" data-option-category="entryPricePresets">
+            <div class="option-category-header">
+              <h3>Entry Price Presets</h3>
+              <span class="option-count">0</span>
+            </div>
+            <div class="option-list">
+              <!-- Empty state — no presets yet -->
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm add-option-btn" data-action="add"><svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Add Entry Price</span></button>
+          </div>
+
+        </div>
+
+        <div class="create-custom-option-wrap">
+          <button type="button" class="btn create-custom-option-btn" id="journal-create-custom-option-btn" data-action="create-custom-option">
+            <svg class="icon-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Create Custom Option</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           4. APPEARANCE
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-appearance">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line></svg></span> Appearance</div>
+        <p class="settings-section-desc">Controls the site theme. This mirrors the existing site-wide theme system.</p>
+
+        <div class="settings-card">
+          <div class="field" id="field-appearance-mode" style="margin-bottom:0;">
+            <label>Theme Mode</label>
+            <div class="segmented" id="appearance-mode-toggle">
+              <input type="radio" name="appearanceMode" id="theme-light" value="light">
+              <label for="theme-light">☀️ Light</label>
+              <input type="radio" name="appearanceMode" id="theme-dark" value="dark" checked>
+              <label for="theme-dark">🌙 Dark</label>
+              <input type="radio" name="appearanceMode" id="theme-system" value="system">
+              <label for="theme-system">🖥️ System</label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           5. DATA & BACKUP
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-data-backup">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg></span> Data &amp; Backup</div>
+        <p class="settings-section-desc">Export, import, and manage your journal data.</p>
+
+        <div class="settings-card">
+
+          <div class="action-row" id="action-export-trades">
+            <div class="action-text">
+              <strong>Export Trades</strong>
+              <span>Download all trades as a CSV file</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="export-trades">Export</button>
+          </div>
+
+          <div class="action-row" id="action-export-journal">
+            <div class="action-text">
+              <strong>Export Journal Data</strong>
+              <span>Download full journal entries as JSON</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="export-journal">Export</button>
+          </div>
+
+          <div class="action-row" id="action-download-backup">
+            <div class="action-text">
+              <strong>Download Backup</strong>
+              <span>Save a complete backup of your account data</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="download-backup">Download</button>
+          </div>
+
+          <div class="action-row" id="action-import-backup">
+            <div class="action-text">
+              <strong>Import Backup</strong>
+              <span>Upload a previously exported backup file</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="import-backup">Import</button>
+            <input type="file" id="import-backup-input" accept=".json" hidden>
+          </div>
+
+          <div class="action-row" id="action-restore-backup">
+            <div class="action-text">
+              <strong>Restore Backup</strong>
+              <span>Replace current data with a selected backup</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="restore-backup">Restore</button>
+          </div>
+
+          <div class="danger-zone" id="action-clear-journal-data">
+            <div class="danger-zone-title">Clear Journal Data</div>
+            <p class="danger-zone-desc">Permanently deletes all trades and journal entries. This cannot be undone.</p>
+            <button type="button" class="btn btn-danger" data-action="open-delete-confirm" data-confirm-type="clear-journal-data">Clear Journal Data</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================================
+           6. NOTIFICATIONS
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-notifications">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span> Notifications</div>
+        <p class="settings-section-desc">Choose how and when EVA reminds you.</p>
+
+        <div class="settings-card">
+
+          <div class="switch-row" id="notif-enable-notifications">
+            <div class="switch-text">
+              <strong>Enable Notifications</strong>
+              <span>Master switch for all notifications</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="notif-enable-toggle" checked>
+              <label class="switch-track" for="notif-enable-toggle"></label>
+            </div>
+          </div>
+
+          <div class="switch-row" id="notif-trading-reminder">
+            <div class="switch-text">
+              <strong>Trading Reminder</strong>
+              <span>Remind me before each trading session</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="notif-trading-toggle" checked>
+              <label class="switch-track" for="notif-trading-toggle"></label>
+            </div>
+          </div>
+
+          <div class="switch-row" id="notif-journal-reminder">
+            <div class="switch-text">
+              <strong>Journal Reminder</strong>
+              <span>Remind me to log today's trades</span>
+            </div>
+            <div class="switch">
+              <input type="checkbox" id="notif-journal-toggle" checked>
+              <label class="switch-track" for="notif-journal-toggle"></label>
+            </div>
+          </div>
+
+          <div class="field" id="field-reminder-time" style="margin: 16px 0 0;">
+            <label for="notif-reminder-time">Reminder Time</label>
+            <input type="time" id="notif-reminder-time" name="reminderTime" value="20:00">
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================================
+           7. ACCOUNT & SECURITY
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-account-security">
+        <div class="settings-section-title"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></span> Account &amp; Security</div>
+        <p class="settings-section-desc">Manage authentication and account safety.</p>
+
+        <div class="settings-card">
+
+          <div class="field field-readonly" id="field-security-email">
+            <label for="security-email">Email</label>
+            <input type="email" id="security-email" value="" readonly>
+            <span class="field-hint">Verified · used for sign-in</span>
+          </div>
+
+          <div class="action-row" id="action-change-password">
+            <div class="action-text">
+              <strong>Change Password</strong>
+              <span>Update your account password</span>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-action="change-password">Change Password</button>
+          </div>
+
+          <div class="action-row" id="action-auth-provider">
+            <div class="action-text">
+              <strong>Authentication Method</strong>
+              <span>Signed in with Email &amp; GitHub</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" data-action="manage-auth">Manage</button>
+          </div>
+
+          <div class="danger-zone" id="action-delete-account">
+            <div class="danger-zone-title">Delete Account</div>
+            <p class="danger-zone-desc">Permanently delete your account and all associated data. This cannot be undone.</p>
+            <button type="button" class="btn btn-danger-solid" data-action="open-delete-confirm" data-confirm-type="delete-account">Delete Account</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============================================================
+           8. LOGOUT
+      ============================================================ -->
+      <section class="settings-section" id="settings-section-logout">
+        <div class="settings-card logout-card">
+          <div>
+            <strong style="font-size:14px; color: var(--text-primary, #f2f3f5);">Log out of EVA</strong>
+            <p>You'll need to sign in again to access your journal.</p>
+          </div>
+          <button type="button" class="btn btn-danger" id="logout-btn" data-action="open-logout-confirm">
+            <svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Logout</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           LOGOUT CONFIRMATION MODAL
+           Hidden by default. Future JS toggles the `hidden` attribute
+           on #logout-confirm-modal to show/hide it, and wires up
+           #logout-confirm-cancel-btn / #logout-confirm-btn.
+      ============================================================ -->
+      <div class="modal-overlay" id="logout-confirm-modal" hidden data-modal="logout-confirm" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <h2 id="logout-confirm-title">Log out</h2>
+            <button type="button" class="modal-close-btn" id="logout-confirm-close-btn" aria-label="Close">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-icon-badge">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </div>
+            <p>Are you sure you want to logout?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" id="logout-confirm-cancel-btn" data-action="cancel">Cancel</button>
+            <button type="button" class="btn btn-danger-solid" id="logout-confirm-btn" data-action="confirm-logout">Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           GENERIC DELETE / DESTRUCTIVE ACTION CONFIRMATION MODAL
+           Hidden by default. Reused for every destructive action in
+           this page (deleting a journal option, clearing journal
+           data, deleting the account). Any button that triggers a
+           delete uses data-action="open-delete-confirm" plus a
+           data-confirm-type describing what it targets:
+             "option"              -> deleting a single journal option
+             "clear-journal-data"  -> wiping all journal entries
+             "delete-account"      -> deleting the whole account
+           Future JS reads data-confirm-type from the button that was
+           clicked, sets #delete-confirm-title / #delete-confirm-message
+           / the confirm button's label accordingly, remembers which
+           item/context triggered it, and shows this modal instead of
+           deleting immediately. #delete-confirm-btn only performs the
+           actual delete after the user confirms here.
+      ============================================================ -->
+      <div class="modal-overlay" id="delete-confirm-modal" hidden data-modal="delete-confirm" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+        <div class="modal-box modal-sm">
+          <div class="modal-header">
+            <h2 id="delete-confirm-title">Delete this?</h2>
+            <button type="button" class="modal-close-btn" id="delete-confirm-close-btn" aria-label="Close">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-icon-badge">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+            </div>
+            <p id="delete-confirm-message">This action cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" id="delete-confirm-cancel-btn" data-action="cancel">Cancel</button>
+            <button type="button" class="btn btn-danger-solid" id="delete-confirm-btn" data-action="confirm-delete">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           CREATE CUSTOM JOURNAL OPTION MODAL
+           Hidden by default. Future JS toggles the `hidden` attribute
+           on #custom-option-modal, populates #custom-option-field-type
+           with the target Journal field, manages the dynamic values
+           list in #custom-option-values-list, and wires up
+           #custom-option-cancel-btn / #custom-option-save-btn.
+      ============================================================ -->
+      <div class="modal-overlay" id="custom-option-modal" hidden data-modal="custom-option" role="dialog" aria-modal="true" aria-labelledby="custom-option-title">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h2 id="custom-option-title">Create Custom Option</h2>
+            <button type="button" class="modal-close-btn" id="custom-option-close-btn" aria-label="Close">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+          <div class="modal-body">
+
+            <div class="field" id="field-custom-option-target">
+              <label for="custom-option-field-type">Journal Field</label>
+              <select id="custom-option-field-type" name="customOptionFieldType" class="custom-option-type-select">
+                <option value="strategies">Strategy</option>
+                <option value="setups">Setup</option>
+                <option value="sessions">Session</option>
+                <option value="marketConditions">Market Condition</option>
+                <option value="timeframes">Timeframe</option>
+                <option value="lotSizePresets">Lot Size</option>
+                <option value="entryPricePresets">Entry Price Presets</option>
+                <option value="emotionsBefore">Emotion Before</option>
+                <option value="emotionsDuring">Emotion During</option>
+                <option value="emotionsAfter">Emotion After</option>
+                <option value="tradeRating">Trade Rating</option>
+                <option value="followedPlan">Followed Plan</option>
+                <option value="confidence">Confidence</option>
+                <option value="discipline">Discipline</option>
+                <option value="closeReason">Close Reason</option>
+                <option value="result">Result</option>
+                <option value="direction">Direction</option>
+                <option value="custom">New Field…</option>
+              </select>
+              <span class="field-hint">Choose an existing Journal field, or add a brand new one.</span>
+            </div>
+
+            <div class="field" id="field-custom-option-new-name">
+              <label for="custom-option-field-name">Field Name</label>
+              <input type="text" id="custom-option-field-name" name="customOptionFieldName" placeholder="e.g. Market Bias">
+              <span class="field-hint">Only needed when creating a new field.</span>
+            </div>
+
+            <div class="field" id="field-custom-option-values" style="margin-bottom: 4px;">
+              <label>Options</label>
+              <div class="custom-option-values-list" id="custom-option-values-list">
+                <!-- Example row structure for future JS to clone:
+                <div class="custom-option-value-row" data-value-row>
+                  <input type="text" value="Bullish">
+                  <button type="button" class="icon-btn danger" data-action="remove-value" aria-label="Remove option">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+                  </button>
+                </div>
+                -->
+              </div>
+              <span class="custom-option-empty-hint" id="custom-option-values-empty-hint">No options added yet.</span>
+              <div class="custom-option-add-value-row">
+                <input type="text" id="custom-option-new-value-input" placeholder="e.g. Bullish">
+                <button type="button" class="btn btn-secondary btn-sm" id="custom-option-add-value-btn" data-action="add-value">
+                  <svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  <span>Add</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" id="custom-option-cancel-btn" data-action="cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="custom-option-save-btn" data-action="save-custom-option">
+              <svg class="icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <span>Save</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </template>
+
+  <script src="eva-loader.js"></script>
+  <script type="module" src="settings.js"></script>
+</body>
+</html>

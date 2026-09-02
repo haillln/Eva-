@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Accounts — EVA</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+
+  <template id="eva-page-content">
+
+    <style>
+      /* =========================================================
+         ACCOUNTS PAGE — scoped with .acc- prefix so nothing here
+         can collide with layout.html's nav/theme CSS. Uses the
+         existing theme variables (--eva-*) so it re-colors
+         automatically when the layout theme toggle fires.
+         ========================================================= */
+      .acc-wrap{
+        max-width:none; margin:0; padding-left:20px; padding-right:20px;
+        font-family:var(--eva-font-body);
+        /* Extra breathing room below the last card. #eva-page already
+           reserves space for the bottom nav (bottom:var(--nav-height)),
+           this is just a safety margin on top of that so the final
+           card/content is never flush against — or hidden by — the
+           fixed nav on any device, including ones with a home-indicator. */
+        padding-bottom:calc(28px + env(safe-area-inset-bottom, 0px));
+      }
+
+      .acc-header{
+        display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+        flex-wrap:wrap; margin-bottom:22px;
+      }
+      .acc-header-left{ display:flex; gap:14px; align-items:flex-start; }
+      .acc-header-icon{
+        width:44px; height:44px; border-radius:12px; flex-shrink:0;
+        background:var(--eva-gradient); display:flex; align-items:center; justify-content:center;
+      }
+      .acc-header-icon svg{ width:22px; height:22px; stroke:#fff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .acc-header h1{
+        font-family:var(--eva-font-display); font-size:1.5rem; font-weight:700; color:var(--eva-text);
+        margin-bottom:4px;
+      }
+      .acc-header p{ font-size:0.86rem; color:var(--eva-text-dim); max-width:420px; }
+      .acc-header p .acc-max{ color:#F59E0B; font-weight:600; }
+
+      .acc-add-btn{
+        display:flex; align-items:center; gap:8px; white-space:nowrap;
+        background:var(--eva-gradient); color:#fff; border:none; border-radius:12px;
+        padding:13px 20px; font-weight:600; font-size:0.92rem; cursor:pointer;
+        box-shadow:0 8px 20px rgba(99,102,241,0.35);
+        transition:transform .2s var(--eva-ease), box-shadow .2s var(--eva-ease);
+      }
+      .acc-add-btn:hover{ transform:translateY(-1px); box-shadow:0 10px 24px rgba(99,102,241,0.45); }
+      .acc-add-btn svg{ width:18px; height:18px; stroke:#fff; fill:none; stroke-width:2.4; stroke-linecap:round; }
+
+      .acc-grid{
+        display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+        gap:18px;
+      }
+
+      .acc-card{
+        position:relative; overflow:hidden;
+        background:var(--eva-surface); border:1px solid var(--eva-border); border-radius:16px;
+        padding:20px 20px 18px 24px; box-shadow:var(--eva-shadow);
+        transition:border-color .2s var(--eva-ease), transform .2s var(--eva-ease);
+      }
+      .acc-card::before{
+        content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+        background:var(--acc-card-color, var(--eva-border));
+      }
+      .acc-card.acc-active::before{ background:var(--eva-gradient); }
+      .acc-card.acc-active{ border-color:color-mix(in srgb, var(--eva-accent-1) 40%, var(--eva-border)); }
+
+      .acc-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:2px; }
+      .acc-card-name{ font-size:1.08rem; font-weight:700; color:var(--eva-text); line-height:1.3;
+        overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }
+      .acc-card-broker{ font-size:0.82rem; color:var(--eva-text-dim); margin-top:2px; }
+
+      .acc-badges{ display:flex; gap:6px; flex-shrink:0; }
+      .acc-pill{
+        font-size:0.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase;
+        padding:4px 10px; border-radius:999px; white-space:nowrap; height:fit-content;
+      }
+      .acc-pill-live{ background:rgba(16,185,129,0.16); color:#10B981; }
+      .acc-pill-demo{ background:rgba(148,163,184,0.18); color:var(--eva-text-dim); }
+      .acc-pill-prop{ background:rgba(168,85,247,0.16); color:#A855F7; }
+      .acc-pill-active{ background:color-mix(in srgb, var(--eva-accent-1) 18%, transparent); color:var(--eva-accent-1); }
+
+      .acc-balance-row{ margin:14px 0 4px; }
+      .acc-balance-label{ font-size:0.72rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--eva-text-dim); }
+      .acc-balance{ font-family:var(--eva-font-display); font-size:1.7rem; font-weight:700; color:var(--eva-text); margin-top:2px; }
+      .acc-pnl{ font-size:0.85rem; font-weight:600; margin-top:2px; }
+      .acc-pos{ color:#10B981; }
+      .acc-neg{ color:#EF4444; }
+
+      .acc-stat-mini-grid{
+        display:grid; grid-template-columns:1fr 1fr; gap:10px;
+        margin:14px 0 16px; padding:14px; border-radius:12px; background:var(--eva-surface-2);
+      }
+      .acc-stat-mini{ display:flex; flex-direction:column; gap:2px; }
+      .acc-stat-mini-label{ font-size:0.68rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--eva-text-dim); }
+      .acc-stat-mini-value{ font-size:0.95rem; font-weight:700; color:var(--eva-text); }
+
+      .acc-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+      .acc-btn{
+        flex:1; min-width:78px; display:flex; align-items:center; justify-content:center; gap:6px;
+        padding:10px 10px; border-radius:10px; font-size:0.82rem; font-weight:600; cursor:pointer;
+        border:1px solid var(--eva-border); background:var(--eva-surface-2); color:var(--eva-text-dim);
+        transition:background-color .2s var(--eva-ease), color .2s var(--eva-ease);
+      }
+      .acc-btn svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .acc-btn:hover{ background:var(--eva-border); color:var(--eva-text); }
+      .acc-btn-analyze{ color:var(--eva-accent-1); background:color-mix(in srgb, var(--eva-accent-1) 12%, transparent); }
+      .acc-btn-analyze:hover{ background:color-mix(in srgb, var(--eva-accent-1) 20%, transparent); color:var(--eva-accent-1); }
+      .acc-btn-danger:hover{ background:rgba(239,68,68,0.15); color:#EF4444; }
+
+      .acc-setactive{
+        margin-top:10px; width:100%; text-align:center; background:none; border:1px dashed var(--eva-border);
+        color:var(--eva-text-dim); font-size:0.78rem; font-weight:600; padding:8px; border-radius:9px; cursor:pointer;
+        transition:border-color .2s var(--eva-ease), color .2s var(--eva-ease);
+      }
+      .acc-setactive:hover{ border-color:var(--eva-accent-1); color:var(--eva-accent-1); }
+
+      .acc-empty{
+        grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--eva-text-dim);
+        border:1px dashed var(--eva-border); border-radius:16px;
+      }
+
+      .acc-toast{
+        position:fixed; left:50%; z-index:1100;
+        bottom:calc(var(--nav-height, 0px) + 20px + env(safe-area-inset-bottom, 0px));
+        transform:translate(-50%, 10px);
+        display:flex; align-items:center; gap:8px;
+        background:var(--eva-surface); color:var(--eva-text);
+        border:1px solid var(--eva-border); box-shadow:var(--eva-shadow);
+        padding:12px 18px; border-radius:12px; font-size:0.86rem; font-weight:600;
+        opacity:0; pointer-events:none;
+        transition:opacity .25s var(--eva-ease), transform .25s var(--eva-ease);
+        max-width:calc(100vw - 40px);
+      }
+      .acc-toast.acc-toast-show{ opacity:1; transform:translate(-50%, 0); }
+      .acc-toast-dot{ width:8px; height:8px; border-radius:50%; background:#10B981; flex-shrink:0; }
+      @media (min-width:900px){ .acc-toast{ bottom:calc(24px + env(safe-area-inset-bottom, 0px)); } }
+
+      /* ---------------- Modals ----------------
+         z-index raised well above any fixed bottom nav, and the
+         backdrop reserves space at the bottom equal to the nav's
+         height (--nav-height, already used elsewhere in this file
+         for the toast) so the sheet renders ABOVE the nav instead of
+         underneath it — the nav itself is never touched. */
+      .acc-modal-backdrop{
+        position:fixed; inset:0; background:rgba(6,8,12,0.55); z-index:3000;
+        display:flex; align-items:flex-end; justify-content:center;
+        opacity:0; pointer-events:none; transition:opacity .25s var(--eva-ease);
+        padding:0;
+        padding-bottom:calc(var(--nav-height, 0px) + env(safe-area-inset-bottom, 0px));
+        box-sizing:border-box;
+      }
+      .acc-modal-backdrop.acc-open{ opacity:1; pointer-events:auto; }
+      @media (min-width:640px){
+        .acc-modal-backdrop{ align-items:center; padding:20px; padding-bottom:20px; }
+      }
+
+      .acc-modal{
+        width:100%; max-width:460px;
+        /* vh fallback first, dvh (viewport-safe on Android Chrome's
+           dynamic address bar) overrides it where supported. Also
+           subtract the bottom-nav height so the sheet's own max-height
+           can never push its footer buttons under the nav. */
+        max-height:90vh;
+        max-height:calc(90dvh - var(--nav-height, 0px) - env(safe-area-inset-bottom, 0px));
+        display:flex; flex-direction:column; overflow:hidden;
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+        border-radius:20px 20px 0 0; box-shadow:var(--eva-shadow);
+        transform:translateY(24px); transition:transform .3s var(--eva-ease);
+      }
+      .acc-modal-backdrop.acc-open .acc-modal{ transform:translateY(0); }
+      @media (min-width:640px){
+        .acc-modal{ border-radius:18px; max-height:90vh; max-height:90dvh; }
+      }
+
+      .acc-modal-head{
+        display:flex; justify-content:space-between; align-items:flex-start; gap:12px;
+        padding:22px 22px 16px; border-bottom:1px solid var(--eva-border);
+        flex-shrink:0;
+      }
+      .acc-modal-head h2{ font-family:var(--eva-font-display); font-size:1.2rem; font-weight:700; color:var(--eva-text); }
+      .acc-modal-head p{ font-size:0.82rem; color:var(--eva-text-dim); margin-top:4px; }
+      .acc-modal-close{
+        background:none; border:none; font-size:1.4rem; line-height:1; color:var(--eva-text-dim);
+        cursor:pointer; padding:4px;
+      }
+      .acc-modal-close:hover{ color:var(--eva-text); }
+
+      .acc-modal-body{
+        padding:20px 22px; overflow-y:auto; -webkit-overflow-scrolling:touch;
+        flex:1 1 auto; min-height:0;
+      }
+      .acc-field{ display:block; margin-bottom:16px; }
+      .acc-field span{ display:block; font-size:0.82rem; font-weight:600; color:var(--eva-text-dim); margin-bottom:7px; }
+      .acc-field input, .acc-field select{
+        width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--eva-border);
+        background:var(--eva-surface-2); color:var(--eva-text); font-size:0.92rem; font-family:inherit;
+        outline:none; transition:border-color .2s var(--eva-ease);
+      }
+      .acc-field input:focus, .acc-field select:focus{ border-color:var(--eva-accent-1); }
+      .acc-field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+      .acc-form-error{ color:#EF4444; font-size:0.82rem; min-height:1em; margin-top:-6px; margin-bottom:6px; }
+
+      /* ---- Account Color field ---- */
+      .acc-color-row{ display:flex; align-items:center; gap:12px; }
+      .acc-color-row input[type="color"]{
+        -webkit-appearance:none; appearance:none;
+        width:52px; height:42px; padding:0; border:1px solid var(--eva-border); border-radius:10px;
+        background:var(--eva-surface-2); cursor:pointer; flex-shrink:0;
+      }
+      .acc-color-row input[type="color"]::-webkit-color-swatch-wrapper{ padding:4px; }
+      .acc-color-row input[type="color"]::-webkit-color-swatch{ border-radius:6px; border:none; }
+      .acc-color-row input[type="color"]::-moz-color-swatch{ border-radius:6px; border:none; }
+      .acc-color-hex{ font-size:0.88rem; font-family:monospace; color:var(--eva-text-dim); text-transform:lowercase; }
+
+      .acc-modal-foot{
+        display:flex; justify-content:flex-end; gap:12px;
+        padding:16px 22px calc(22px + env(safe-area-inset-bottom, 0px));
+        flex-shrink:0; border-top:1px solid var(--eva-border);
+        background:var(--eva-surface);
+      }
+      .acc-btn-ghost{
+        background:none; border:none; color:var(--eva-text-dim); font-weight:600; font-size:0.9rem;
+        padding:12px 8px; cursor:pointer;
+      }
+      .acc-btn-ghost:hover{ color:var(--eva-text); }
+      .acc-btn-primary{
+        background:var(--eva-gradient); color:#fff; border:none; border-radius:11px;
+        padding:12px 22px; font-weight:700; font-size:0.9rem; cursor:pointer;
+        box-shadow:0 8px 18px rgba(99,102,241,0.35);
+      }
+      .acc-btn-primary:disabled{ opacity:0.6; cursor:not-allowed; }
+      .acc-btn-danger{
+        background:#EF4444; color:#fff; border:none; border-radius:11px;
+        padding:12px 22px; font-weight:700; font-size:0.9rem; cursor:pointer;
+      }
+
+      .acc-delete-body h2{ font-family:var(--eva-font-display); font-size:1.15rem; color:var(--eva-text); margin-bottom:8px; }
+      .acc-delete-body p{ font-size:0.86rem; color:var(--eva-text-dim); }
+
+      /* ---- Analyze modal ----
+         Sized up and re-colored to match the reference look: a bigger
+         sheet, a soft glow behind the avatar on the left, larger
+         balance/return figures, and a small heartbeat/pulse icon next
+         to "Performance Matrix". The "more data in Journal" note below
+         keeps its existing simpler style (explicitly not restyled). */
+      .acc-modal-lg{ max-width:540px; }
+      .acc-analyze-title-row{ display:flex; align-items:center; gap:14px; }
+      .acc-analyze-avatar{
+        width:52px; height:52px; border-radius:14px; background:var(--eva-gradient);
+        display:flex; align-items:center; justify-content:center; flex-shrink:0;
+        box-shadow:0 0 0 8px color-mix(in srgb, var(--eva-accent-1) 16%, transparent),
+                   0 8px 20px color-mix(in srgb, var(--eva-accent-1) 35%, transparent);
+      }
+      .acc-analyze-avatar svg{ width:22px; height:22px; stroke:#fff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .acc-modal-lg #acc-analyze-name{ font-size:1.32rem; }
+      .acc-stat-grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+      .acc-stat-box{
+        background:var(--eva-surface-2); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:5px;
+      }
+      .acc-stat-label{ font-size:0.68rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--eva-text-dim); }
+      .acc-stat-value{ font-family:var(--eva-font-display); font-size:1.3rem; font-weight:700; color:var(--eva-text); }
+      .acc-modal-lg .acc-stat-value{ font-size:1.65rem; }
+      .acc-stat-sub{ font-size:0.72rem; color:var(--eva-text-dim); }
+      .acc-section-title{
+        font-size:0.78rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--eva-text-dim);
+        margin-bottom:10px; display:flex; align-items:center; gap:7px;
+      }
+      .acc-section-title svg{ width:15px; height:15px; stroke:var(--eva-accent-1); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .acc-analyze-note{
+        background:color-mix(in srgb, var(--eva-accent-1) 10%, transparent);
+        border:1px solid color-mix(in srgb, var(--eva-accent-1) 25%, transparent);
+        color:var(--eva-text-dim); font-size:0.84rem; line-height:1.5;
+        border-radius:12px; padding:14px 16px;
+      }
+
+      /* =========================================================
+         DESKTOP-ONLY ENHANCEMENTS (>=900px)
+         Everything in this block is scoped behind the media query
+         AND behind JS's isDesktop() check on the markup it toggles,
+         so nothing here can ever affect the mobile card, mobile
+         scrolling, or mobile layout — mobile keeps its existing
+         rules above completely untouched.
+         ========================================================= */
+      .acc-view-toggle{ display:none; }
+
+      @media (min-width:900px){
+
+        /* ---- Card / List switch (desktop only) ---- */
+        .acc-toolbar{
+          display:flex; justify-content:flex-end; margin-bottom:16px;
+        }
+        .acc-view-toggle{
+          display:inline-flex; gap:2px; padding:3px;
+          background:var(--eva-surface-2); border:1px solid var(--eva-border);
+          border-radius:11px;
+        }
+        .acc-view-btn{
+          border:none; background:none; cursor:pointer;
+          font-size:0.82rem; font-weight:600; color:var(--eva-text-dim);
+          padding:8px 18px; border-radius:8px;
+          transition:background-color .2s var(--eva-ease), color .2s var(--eva-ease);
+        }
+        .acc-view-btn:hover{ color:var(--eva-text); }
+        .acc-view-btn.acc-view-btn-active{
+          background:var(--eva-surface); color:var(--eva-text);
+          box-shadow:var(--eva-shadow);
+        }
+
+        .acc-wrap{ padding-left:32px; padding-right:32px; }
+
+        /* ---- Larger desktop cards, more horizontal room ---- */
+        .acc-grid{
+          grid-template-columns:repeat(auto-fill, minmax(400px, 1fr));
+          gap:22px;
+        }
+        .acc-card{
+          padding:28px 28px 24px 32px;
+          min-height:230px;
+          display:grid;
+          grid-template-columns:1fr auto;
+          grid-template-rows:auto auto 1fr auto;
+          column-gap:28px;
+          align-items:start;
+        }
+        .acc-card-top{ grid-column:1; grid-row:1; margin-bottom:6px; }
+        .acc-balance-row{ grid-column:1; grid-row:2; margin:6px 0 8px; }
+        .acc-balance{ font-size:2rem; }
+        .acc-stat-mini-grid{ grid-column:1; grid-row:3; margin:8px 0 0; align-self:start; }
+        .acc-setactive{ grid-column:1 / -1; grid-row:4; margin-top:16px; }
+
+        /* Actions move to the right side, stacked vertically */
+        .acc-actions{
+          grid-column:2; grid-row:1 / 4;
+          flex-direction:column; flex-wrap:nowrap; gap:8px;
+          align-self:center; min-width:140px;
+        }
+        .acc-actions .acc-btn{ width:100%; justify-content:flex-start; padding:11px 14px; }
+
+        /* ---- List view ---- */
+        .acc-grid.acc-list-view{
+          display:flex; flex-direction:column; gap:8px;
+        }
+        .acc-list-row{
+          display:grid;
+          grid-template-columns:1.6fr 0.9fr 1fr 1.6fr auto;
+          align-items:center; gap:18px;
+          background:var(--eva-surface); border:1px solid var(--eva-border); border-radius:12px;
+          padding:22px 22px; min-height:64px; position:relative; overflow:hidden;
+        }
+        .acc-list-row::before{
+          content:''; position:absolute; left:0; top:0; bottom:0; width:4px;
+          background:var(--acc-card-color, var(--eva-border));
+        }
+        .acc-list-row.acc-active{ border-color:color-mix(in srgb, var(--eva-accent-1) 40%, var(--eva-border)); }
+        .acc-list-row.acc-active::before{ background:var(--eva-gradient); }
+
+        .acc-list-name{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+        .acc-list-name .acc-list-name-text{
+          font-size:0.98rem; font-weight:700; color:var(--eva-text);
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        .acc-list-name .acc-list-broker{ font-size:0.78rem; color:var(--eva-text-dim); }
+
+        .acc-list-badges{ display:flex; gap:6px; flex-wrap:wrap; }
+
+        .acc-list-balance{ display:flex; flex-direction:column; gap:1px; }
+        .acc-list-balance .acc-list-balance-value{ font-weight:700; color:var(--eva-text); font-size:0.95rem; }
+        .acc-list-balance .acc-pnl{ font-size:0.78rem; margin-top:0; }
+
+        .acc-list-stats{ display:flex; gap:18px; flex-wrap:wrap; }
+        .acc-list-stat{ display:flex; flex-direction:column; gap:1px; }
+        .acc-list-stat-label{ font-size:0.64rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--eva-text-dim); }
+        .acc-list-stat-value{ font-size:0.85rem; font-weight:700; color:var(--eva-text); }
+
+        .acc-list-actions{ display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
+        .acc-list-btn{
+          display:flex; align-items:center; justify-content:center;
+          width:34px; height:34px; border-radius:9px; cursor:pointer;
+          border:1px solid var(--eva-border); background:var(--eva-surface-2); color:var(--eva-text-dim);
+          transition:background-color .2s var(--eva-ease), color .2s var(--eva-ease);
+        }
+        .acc-list-btn svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .acc-list-btn:hover{ background:var(--eva-border); color:var(--eva-text); }
+        .acc-list-btn-analyze{ color:var(--eva-accent-1); background:color-mix(in srgb, var(--eva-accent-1) 12%, transparent); }
+        .acc-list-btn-analyze:hover{ background:color-mix(in srgb, var(--eva-accent-1) 20%, transparent); color:var(--eva-accent-1); }
+        .acc-list-btn-danger:hover{ background:rgba(239,68,68,0.15); color:#EF4444; }
+        .acc-list-setactive{
+          background:none; border:1px dashed var(--eva-border); color:var(--eva-text-dim);
+          font-size:0.72rem; font-weight:600; padding:8px 10px; border-radius:8px; cursor:pointer;
+          white-space:nowrap;
+          transition:border-color .2s var(--eva-ease), color .2s var(--eva-ease);
+        }
+        .acc-list-setactive:hover{ border-color:var(--eva-accent-1); color:var(--eva-accent-1); }
+      }
+    </style>
+
+    <div class="acc-wrap">
+      <div class="acc-header">
+        <div class="acc-header-left">
+          <div class="acc-header-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+          </div>
+          <div>
+            <h1>Trading Accounts</h1>
+            <p id="acc-summary">Loading accounts…</p>
+          </div>
+        </div>
+        <button class="acc-add-btn" id="acc-add-btn">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Account
+        </button>
+      </div>
+
+      <div class="acc-toolbar">
+        <div class="acc-view-toggle" id="acc-view-toggle" role="group" aria-label="Account display">
+          <button type="button" class="acc-view-btn acc-view-btn-active" id="acc-view-card" data-view="card">Card</button>
+          <button type="button" class="acc-view-btn" id="acc-view-list" data-view="list">List</button>
+        </div>
+      </div>
+
+      <div class="acc-grid" id="acc-grid">
+        <div class="acc-empty" id="acc-loading">Loading your accounts…</div>
+      </div>
+    </div>
+
+    <div class="acc-toast" id="acc-toast" role="status" aria-live="polite">
+      <span class="acc-toast-dot"></span>
+      <span id="acc-toast-msg"></span>
+    </div>
+
+    <!-- Add / Edit Account Modal -->
+    <div class="acc-modal-backdrop" id="acc-form-backdrop">
+      <div class="acc-modal">
+        <div class="acc-modal-head">
+          <div>
+            <h2 id="acc-form-title">Add Trading Account</h2>
+            <p id="acc-form-sub">Create a new trading account for your journal.</p>
+          </div>
+          <button class="acc-modal-close" id="acc-form-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="acc-modal-body">
+          <label class="acc-field">
+            <span>Account Name *</span>
+            <input type="text" id="acc-f-name" placeholder="My Live IC Markets Account" maxlength="60">
+          </label>
+          <label class="acc-field">
+            <span>Broker</span>
+            <input type="text" id="acc-f-broker" placeholder="FTMO, IC Markets, Exness…" maxlength="40">
+          </label>
+          <div class="acc-field-row">
+            <label class="acc-field">
+              <span>Account Type *</span>
+              <select id="acc-f-type">
+                <option value="Live">Live</option>
+                <option value="Demo">Demo</option>
+                <option value="Prop Firm">Prop Firm</option>
+              </select>
+            </label>
+            <label class="acc-field">
+              <span>Currency</span>
+              <input type="text" id="acc-f-currency" placeholder="USD" maxlength="6">
+            </label>
+          </div>
+          <label class="acc-field">
+            <span>Initial Balance *</span>
+            <input type="number" id="acc-f-balance" placeholder="10000" min="0" step="0.01">
+          </label>
+          <label class="acc-field">
+            <span>Account Color</span>
+            <div class="acc-color-row">
+              <input type="color" id="acc-f-color" value="#6366f1">
+              <span class="acc-color-hex" id="acc-f-color-hex">#6366f1</span>
+            </div>
+          </label>
+          <p class="acc-form-error" id="acc-form-error"></p>
+        </div>
+        <div class="acc-modal-foot">
+          <button class="acc-btn-ghost" id="acc-form-cancel">Cancel</button>
+          <button class="acc-btn-primary" id="acc-form-submit">Add Trading Account</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analyze Modal -->
+    <div class="acc-modal-backdrop" id="acc-analyze-backdrop">
+      <div class="acc-modal acc-modal-lg">
+        <div class="acc-modal-head">
+          <div class="acc-analyze-title-row">
+            <div class="acc-analyze-avatar" id="acc-analyze-avatar">
+              <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.1-2.8-2.8L7 14"/></svg>
+            </div>
+            <div>
+              <h2 id="acc-analyze-name">Analytics</h2>
+              <p id="acc-analyze-sub">Broker • 0 Trades</p>
+            </div>
+          </div>
+          <button class="acc-modal-close" id="acc-analyze-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="acc-modal-body">
+          <div class="acc-stat-grid-2">
+            <div class="acc-stat-box">
+              <span class="acc-stat-label">Current Balance</span>
+              <span class="acc-stat-value" id="acc-analyze-balance">USD 0.00</span>
+            </div>
+            <div class="acc-stat-box">
+              <span class="acc-stat-label">Net Return</span>
+              <span class="acc-stat-value acc-pos" id="acc-analyze-return">+USD 0.00</span>
+            </div>
+          </div>
+          <h3 class="acc-section-title">
+            <svg viewBox="0 0 24 24"><polyline points="2 12 7 12 9 6 13 18 16 12 22 12"/></svg>
+            Performance Matrix
+          </h3>
+          <div class="acc-stat-grid-2">
+            <div class="acc-stat-box">
+              <span class="acc-stat-label">Win Rate</span>
+              <span class="acc-stat-value" id="acc-analyze-winrate">0.0%</span>
+              <span class="acc-stat-sub" id="acc-analyze-wins">Wins: 0</span>
+            </div>
+            <div class="acc-stat-box">
+              <span class="acc-stat-label">Gross PNL</span>
+              <span class="acc-stat-value acc-pos" id="acc-analyze-grosspnl">+$0.00</span>
+              <span class="acc-stat-sub">Total Profits</span>
+            </div>
+            <div class="acc-stat-box">
+              <span class="acc-stat-label">Best Trade</span>
+              <span class="acc-stat-value acc-pos" id="acc-analyze-best">+$0.00</span>
+              <span class="acc-stat-sub">Peak Win</span>
+            </div>
+            <div class="acc-stat-box">
+              <span class="acc-stat-label">Worst Trade</span>
+              <span class="acc-stat-value acc-neg" id="acc-analyze-worst">-$0.00</span>
+              <span class="acc-stat-sub">Max Drawdown</span>
+            </div>
+          </div>
+          <div class="acc-analyze-note">
+            More detailed charts and a full historical ledger for this account will appear here once Journal data is available.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirm Modal -->
+    <div class="acc-modal-backdrop" id="acc-delete-backdrop">
+      <div class="acc-modal">
+        <div class="acc-modal-body acc-delete-body">
+          <h2>Delete this account?</h2>
+          <p>This will permanently remove the account and its saved information. This can't be undone.</p>
+        </div>
+        <div class="acc-modal-foot">
+          <button class="acc-btn-ghost" id="acc-delete-cancel">Cancel</button>
+          <button class="acc-btn-danger" id="acc-delete-confirm">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+      import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+      import {
+        getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+        onSnapshot, query, orderBy, serverTimestamp, getDocs, writeBatch
+      } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyDGh-M9Ps_fy1k8u-r0H899U0L-LQQBKZI",
+        authDomain: "eval-61cd9.firebaseapp.com",
+        projectId: "eval-61cd9",
+        storageBucket: "eval-61cd9.firebasestorage.app",
+        messagingSenderId: "843373749164",
+        appId: "1:843373749164:web:cc93d5513895ca10065009",
+        measurementId: "G-R6D77DNJXT"
+      };
+
+      // Reuse layout.html's Firebase app if it already initialized it;
+      // create it ourselves only if we happen to run first.
+      const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      let currentUID = null;
+      let accountsCache = [];   // latest snapshot data, kept for Edit/Delete/Analyze/Set-Active
+      let editingId = null;     // set when the form modal is in "edit" mode
+      let pendingDeleteId = null;
+      let currentView = 'card'; // desktop-only Card/List switch; mobile always renders as card
+
+      const grid = document.getElementById('acc-grid');
+      const summaryEl = document.getElementById('acc-summary');
+
+      /* Desktop breakpoint check — matches the 900px media query above.
+         Guards list-view rendering so a view switched to "List" on
+         desktop can never leak the list markup onto a mobile layout. */
+      const DESKTOP_MQ = window.matchMedia('(min-width:900px)');
+      function isDesktop(){ return DESKTOP_MQ.matches; }
+
+      /* ---------------- helpers ---------------- */
+      function fmtMoney(n, currency){
+        const v = Number(n) || 0;
+        return `${currency || 'USD'} ${v.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+      }
+      function pillClass(type){
+        if (type === 'Demo') return 'acc-pill-demo';
+        if (type === 'Prop Firm') return 'acc-pill-prop';
+        return 'acc-pill-live';
+      }
+      function escapeHTML(str){
+        return String(str || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+      }
+
+      /* ---------------- success toast ---------------- */
+      const toastEl = document.getElementById('acc-toast');
+      const toastMsgEl = document.getElementById('acc-toast-msg');
+      let toastTimer = null;
+      function showToast(message){
+        if (!toastEl || !toastMsgEl) return;
+        toastMsgEl.textContent = message;
+        toastEl.classList.add('acc-toast-show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove('acc-toast-show'), 2200);
+      }
+
+      /* ---------------- default account ---------------- */
+      async function ensureDefaultAccount(user){
+        const colRef = collection(db, 'users', user.uid, 'accounts');
+        const existing = await getDocs(colRef);
+        if (!existing.empty) return;
+
+        const defaultName =
+          user.displayName ||
+          (user.email ? user.email.split('@')[0] : 'My Account');
+
+        await addDoc(colRef, {
+          name: defaultName,
+          broker: '',
+          accountType: 'Live',
+          currency: 'USD',
+          initialBalance: 0,
+          currentBalance: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          isActive: true
+        });
+      }
+
+      /* ---------------- render ---------------- */
+
+      // Shared per-account numbers used by both the card and the list
+      // row markup, so the two views can never drift out of sync.
+      function computeRowData(a){
+        const pnl = (Number(a.currentBalance) || 0) - (Number(a.initialBalance) || 0);
+        const pnlPct = a.initialBalance ? (pnl / a.initialBalance) * 100 : 0;
+        const pnlClass = pnl >= 0 ? 'acc-pos' : 'acc-neg';
+        const pnlSign = pnl >= 0 ? '+' : '';
+        // Placeholders until Journal data exists — kept in the same
+        // shape Journal-derived stats will eventually populate.
+        const stats = {
+          winRate: a.winRate ?? 0,
+          totalTrades: a.totalTrades ?? 0,
+          wins: a.wins ?? 0,
+          grossProfit: a.grossProfit ?? 0,
+          grossLoss: a.grossLoss ?? 0,
+          bestTrade: a.bestTrade ?? 0,
+          worstTrade: a.worstTrade ?? 0
+        };
+        return { pnl, pnlPct, pnlClass, pnlSign, stats };
+      }
+
+      // Original card markup — unchanged from the previous version,
+      // used on mobile always, and on desktop when Card is selected.
+      function cardHTML(d){
+        const a = d.data;
+        const { pnl, pnlPct, pnlClass, pnlSign, stats } = computeRowData(a);
+
+        return `
+          <div class="acc-card ${a.isActive ? 'acc-active' : ''}" data-id="${d.id}" style="--acc-card-color:${escapeHTML(a.color || '#6366f1')}">
+            <div class="acc-card-top">
+              <div>
+                <div class="acc-card-name">${escapeHTML(a.name)}</div>
+                ${a.broker ? `<div class="acc-card-broker">${escapeHTML(a.broker)}</div>` : ''}
+              </div>
+              <div class="acc-badges">
+                ${a.isActive ? '<span class="acc-pill acc-pill-active">Active</span>' : ''}
+                <span class="acc-pill ${pillClass(a.accountType)}">${escapeHTML(a.accountType || 'Live')}</span>
+              </div>
+            </div>
+
+            <div class="acc-balance-row">
+              <div class="acc-balance-label">Balance</div>
+              <div class="acc-balance">${fmtMoney(a.currentBalance, a.currency)}</div>
+              <div class="acc-pnl ${pnlClass}">${pnlSign}${fmtMoney(pnl, a.currency)} (${pnlSign}${pnlPct.toFixed(1)}%)</div>
+            </div>
+
+            <div class="acc-stat-mini-grid">
+              <div class="acc-stat-mini">
+                <span class="acc-stat-mini-label">Win Rate</span>
+                <span class="acc-stat-mini-value">${Number(stats.winRate).toFixed(0)}% (${stats.totalTrades} trades)</span>
+              </div>
+              <div class="acc-stat-mini">
+                <span class="acc-stat-mini-label">Gross PNL</span>
+                <span class="acc-stat-mini-value acc-pos">+$${Number(stats.grossProfit).toFixed(2)}</span>
+              </div>
+              <div class="acc-stat-mini">
+                <span class="acc-stat-mini-label">Best Trade</span>
+                <span class="acc-stat-mini-value acc-pos">+$${Number(stats.bestTrade).toFixed(2)}</span>
+              </div>
+              <div class="acc-stat-mini">
+                <span class="acc-stat-mini-label">Worst Trade</span>
+                <span class="acc-stat-mini-value acc-neg">-$${Math.abs(Number(stats.worstTrade)).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="acc-actions">
+              <button class="acc-btn acc-btn-analyze" data-action="analyze" data-id="${d.id}">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Analyze
+              </button>
+              <button class="acc-btn" data-action="edit" data-id="${d.id}">
+                <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                Edit
+              </button>
+              <button class="acc-btn acc-btn-danger" data-action="delete" data-id="${d.id}">
+                <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                Delete
+              </button>
+            </div>
+
+            ${!a.isActive ? `<button class="acc-setactive" data-action="setactive" data-id="${d.id}">Set as Active Account</button>` : ''}
+          </div>
+        `;
+      }
+
+      // Compact desktop-only list row — same data, same data-action/
+      // data-id attributes so the existing delegated click handler
+      // below needs no changes to support it.
+      function listRowHTML(d){
+        const a = d.data;
+        const { pnl, pnlPct, pnlClass, pnlSign, stats } = computeRowData(a);
+
+        return `
+          <div class="acc-list-row ${a.isActive ? 'acc-active' : ''}" data-id="${d.id}" style="--acc-card-color:${escapeHTML(a.color || '#6366f1')}">
+            <div class="acc-list-name">
+              <div class="acc-list-name-text">${escapeHTML(a.name)}</div>
+              <div class="acc-list-broker">${a.broker ? escapeHTML(a.broker) : '&nbsp;'}</div>
+            </div>
+
+            <div class="acc-list-badges">
+              ${a.isActive ? '<span class="acc-pill acc-pill-active">Active</span>' : ''}
+              <span class="acc-pill ${pillClass(a.accountType)}">${escapeHTML(a.accountType || 'Live')}</span>
+            </div>
+
+            <div class="acc-list-balance">
+              <div class="acc-list-balance-value">${fmtMoney(a.currentBalance, a.currency)}</div>
+              <div class="acc-pnl ${pnlClass}">${pnlSign}${fmtMoney(pnl, a.currency)} (${pnlSign}${pnlPct.toFixed(1)}%)</div>
+            </div>
+
+            <div class="acc-list-stats">
+              <div class="acc-list-stat">
+                <span class="acc-list-stat-label">Win Rate</span>
+                <span class="acc-list-stat-value">${Number(stats.winRate).toFixed(0)}% (${stats.totalTrades})</span>
+              </div>
+              <div class="acc-list-stat">
+                <span class="acc-list-stat-label">Gross PNL</span>
+                <span class="acc-list-stat-value acc-pos">+$${Number(stats.grossProfit).toFixed(2)}</span>
+              </div>
+              <div class="acc-list-stat">
+                <span class="acc-list-stat-label">Best</span>
+                <span class="acc-list-stat-value acc-pos">+$${Number(stats.bestTrade).toFixed(2)}</span>
+              </div>
+              <div class="acc-list-stat">
+                <span class="acc-list-stat-label">Worst</span>
+                <span class="acc-list-stat-value acc-neg">-$${Math.abs(Number(stats.worstTrade)).toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div class="acc-list-actions">
+              ${!a.isActive ? `<button class="acc-list-setactive" data-action="setactive" data-id="${d.id}">Set Active</button>` : ''}
+              <button class="acc-list-btn acc-list-btn-analyze" data-action="analyze" data-id="${d.id}" title="Analyze" aria-label="Analyze">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </button>
+              <button class="acc-list-btn" data-action="edit" data-id="${d.id}" title="Edit" aria-label="Edit">
+                <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </button>
+              <button class="acc-list-btn acc-list-btn-danger" data-action="delete" data-id="${d.id}" title="Delete" aria-label="Delete">
+                <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderAccounts(docs){
+        accountsCache = docs;
+
+        summaryEl.textContent = docs.length === 0
+          ? 'No accounts yet'
+          : `${docs.length} account${docs.length === 1 ? '' : 's'} · switch accounts from any page using the account selector`;
+
+        if (docs.length === 0){
+          grid.classList.remove('acc-list-view');
+          grid.innerHTML = '<div class="acc-empty">No trading accounts yet. Click "Add Account" to create one.</div>';
+          return;
+        }
+
+        // List view only ever renders on desktop widths (>=900px, the
+        // same breakpoint the CSS above uses). On mobile this is
+        // always false, so mobile always gets the original card
+        // markup/layout exactly as before, regardless of which button
+        // was last clicked on a wider screen.
+        const useList = isDesktop() && currentView === 'list';
+        grid.classList.toggle('acc-list-view', useList);
+        grid.innerHTML = docs.map(d => useList ? listRowHTML(d) : cardHTML(d)).join('');
+      }
+
+      /* ---------------- desktop Card/List view switch ---------------- */
+      const viewCardBtn = document.getElementById('acc-view-card');
+      const viewListBtn = document.getElementById('acc-view-list');
+      function setView(view){
+        currentView = view;
+        viewCardBtn.classList.toggle('acc-view-btn-active', view === 'card');
+        viewListBtn.classList.toggle('acc-view-btn-active', view === 'list');
+        renderAccounts(accountsCache);
+      }
+      viewCardBtn.addEventListener('click', () => setView('card'));
+      viewListBtn.addEventListener('click', () => setView('list'));
+
+      // If the viewport crosses the desktop breakpoint (e.g. resizing
+      // the window, or rotating/undocking a device), re-render so the
+      // mobile side never ends up showing list-view markup.
+      DESKTOP_MQ.addEventListener('change', () => renderAccounts(accountsCache));
+
+      /* ---------------- card action clicks (delegated) ---------------- */
+      grid.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-action');
+        const record = accountsCache.find(d => d.id === id);
+        if (!record) return;
+
+        if (action === 'analyze') openAnalyze(record);
+        else if (action === 'edit') openForm(record);
+        else if (action === 'delete') openDeleteConfirm(id);
+        else if (action === 'setactive') setActiveAccount(id);
+      });
+
+      async function setActiveAccount(id){
+        if (!currentUID) return;
+        const batch = writeBatch(db);
+        accountsCache.forEach(d => {
+          const ref = doc(db, 'users', currentUID, 'accounts', d.id);
+          if (d.id === id) batch.update(ref, { isActive: true, updatedAt: serverTimestamp() });
+          else if (d.data.isActive) batch.update(ref, { isActive: false, updatedAt: serverTimestamp() });
+        });
+        try { await batch.commit(); }
+        catch (err) { console.error('Failed to set active account:', err); }
+      }
+
+      /* ---------------- Add / Edit form ---------------- */
+      const formBackdrop = document.getElementById('acc-form-backdrop');
+      const formTitle = document.getElementById('acc-form-title');
+      const formSub = document.getElementById('acc-form-sub');
+      const fName = document.getElementById('acc-f-name');
+      const fBroker = document.getElementById('acc-f-broker');
+      const fType = document.getElementById('acc-f-type');
+      const fCurrency = document.getElementById('acc-f-currency');
+      const fBalance = document.getElementById('acc-f-balance');
+      const fColor = document.getElementById('acc-f-color');
+      const fColorHex = document.getElementById('acc-f-color-hex');
+      const formError = document.getElementById('acc-form-error');
+      const formSubmit = document.getElementById('acc-form-submit');
+
+      fColor.addEventListener('input', () => { fColorHex.textContent = fColor.value; });
+
+      function openForm(record){
+        editingId = record ? record.id : null;
+        formError.textContent = '';
+
+        if (record){
+          formTitle.textContent = 'Edit Trading Account';
+          formSub.textContent = 'Update this trading account\u2019s information.';
+          formSubmit.textContent = 'Save Changes';
+          fName.value = record.data.name || '';
+          fBroker.value = record.data.broker || '';
+          fType.value = record.data.accountType || 'Live';
+          fCurrency.value = record.data.currency || 'USD';
+          fBalance.value = record.data.initialBalance ?? '';
+          fColor.value = record.data.color || '#6366f1';
+          fColorHex.textContent = fColor.value;
+        } else {
+          formTitle.textContent = 'Add Trading Account';
+          formSub.textContent = 'Create a new trading account for your journal.';
+          formSubmit.textContent = 'Add Trading Account';
+          fName.value = '';
+          fBroker.value = '';
+          fType.value = 'Live';
+          fCurrency.value = 'USD';
+          fBalance.value = '';
+          fColor.value = '#6366f1';
+          fColorHex.textContent = fColor.value;
+        }
+        formBackdrop.classList.add('acc-open');
+      }
+      function closeForm(){ formBackdrop.classList.remove('acc-open'); editingId = null; }
+
+      document.getElementById('acc-add-btn').addEventListener('click', () => openForm(null));
+      document.getElementById('acc-form-close').addEventListener('click', closeForm);
+      document.getElementById('acc-form-cancel').addEventListener('click', closeForm);
+      formBackdrop.addEventListener('click', (e) => { if (e.target === formBackdrop) closeForm(); });
+
+      formSubmit.addEventListener('click', async () => {
+        const name = fName.value.trim();
+        const type = fType.value;
+        const balanceRaw = fBalance.value.trim();
+        const balance = parseFloat(balanceRaw);
+
+        // Guard against the real, silent cause of most "Something went
+        // wrong" reports on this form: the auth listener hasn't resolved
+        // yet (or the session dropped) so currentUID is null, and
+        // collection(db, 'users', null, 'accounts') throws immediately
+        // with an "Invalid path" error that got swallowed by the old
+        // catch-all message below.
+        if (!currentUID){
+          formError.textContent = 'You are not signed in (no user ID detected). Please refresh and log in again.';
+          return;
+        }
+        if (!name){ formError.textContent = 'Account name is required.'; return; }
+        if (!type){ formError.textContent = 'Account type is required.'; return; }
+        if (balanceRaw === '' || isNaN(balance) || balance < 0){
+          formError.textContent = 'Enter a valid initial balance.'; return;
+        }
+        formError.textContent = '';
+        formSubmit.disabled = true;
+        const originalLabel = formSubmit.textContent;
+        formSubmit.textContent = editingId ? 'Saving…' : 'Adding…';
+
+        try {
+          if (editingId){
+            await updateDoc(doc(db, 'users', currentUID, 'accounts', editingId), {
+              name,
+              broker: fBroker.value.trim(),
+              accountType: type,
+              currency: (fCurrency.value.trim() || 'USD').toUpperCase(),
+              initialBalance: balance,
+              color: fColor.value,
+              updatedAt: serverTimestamp()
+            });
+          } else {
+            await addDoc(collection(db, 'users', currentUID, 'accounts'), {
+              name,
+              broker: fBroker.value.trim(),
+              accountType: type,
+              currency: (fCurrency.value.trim() || 'USD').toUpperCase(),
+              initialBalance: balance,
+              color: fColor.value,
+              currentBalance: balance,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+              isActive: false
+            });
+          }
+          const wasEdit = !!editingId;
+          closeForm();
+          showToast(wasEdit ? 'Account updated' : 'Account created');
+        } catch (err) {
+          // Log the actual diagnostic signal instead of hiding it.
+          // err.code is what tells you WHY it failed:
+          //   'permission-denied' -> Firestore security rules rejected
+          //     the write (by far the most common real cause — check
+          //     that your rules allow request.auth.uid == the {uid}
+          //     segment for users/{uid}/accounts/{accountId}).
+          //   'unauthenticated'   -> auth token missing/expired.
+          //   'unavailable'       -> network/connectivity issue.
+          //   'invalid-argument'  -> a field value Firestore rejected.
+          console.error('Failed to save account:', err.code || '(no error code)', err.message, err);
+
+          if (err.code === 'permission-denied'){
+            formError.textContent = 'Permission denied by Firestore security rules — the write to users/{uid}/accounts was rejected. Check your rules allow this signed-in user to write there.';
+          } else if (err.code === 'unauthenticated'){
+            formError.textContent = 'Your session expired. Please log in again.';
+          } else if (err.code === 'unavailable'){
+            formError.textContent = 'Could not reach Firestore. Check your connection and try again.';
+          } else {
+            formError.textContent = `Something went wrong (${err.code || err.message || 'unknown error'}). See console for details.`;
+          }
+        } finally {
+          formSubmit.disabled = false;
+          formSubmit.textContent = originalLabel;
+        }
+      });
+
+      /* ---------------- Delete confirm ---------------- */
+      const deleteBackdrop = document.getElementById('acc-delete-backdrop');
+      function openDeleteConfirm(id){ pendingDeleteId = id; deleteBackdrop.classList.add('acc-open'); }
+      function closeDeleteConfirm(){ pendingDeleteId = null; deleteBackdrop.classList.remove('acc-open'); }
+
+      document.getElementById('acc-delete-cancel').addEventListener('click', closeDeleteConfirm);
+      deleteBackdrop.addEventListener('click', (e) => { if (e.target === deleteBackdrop) closeDeleteConfirm(); });
+      document.getElementById('acc-delete-confirm').addEventListener('click', async () => {
+        if (!pendingDeleteId || !currentUID) return;
+        try {
+          await deleteDoc(doc(db, 'users', currentUID, 'accounts', pendingDeleteId));
+          closeDeleteConfirm();
+          showToast('Account deleted');
+        } catch (err) {
+          console.error('Failed to delete account:', err.code || '(no error code)', err.message, err);
+          closeDeleteConfirm();
+          showToast(err.code === 'permission-denied' ? 'Delete blocked by Firestore rules' : 'Could not delete account');
+        }
+      });
+
+      /* ---------------- Analyze modal ---------------- */
+      const analyzeBackdrop = document.getElementById('acc-analyze-backdrop');
+      function openAnalyze(record){
+        const a = record.data;
+        const pnl = (Number(a.currentBalance) || 0) - (Number(a.initialBalance) || 0);
+        const totalTrades = a.totalTrades ?? 0;
+        const wins = a.wins ?? 0;
+        const winRate = a.winRate ?? 0;
+
+        const analyzeAvatar = document.getElementById('acc-analyze-avatar');
+        const accColor = a.color || '#6366f1';
+        analyzeAvatar.style.background = accColor;
+        analyzeAvatar.style.boxShadow = `0 0 0 8px color-mix(in srgb, ${accColor} 16%, transparent), 0 8px 20px color-mix(in srgb, ${accColor} 35%, transparent)`;
+
+        document.getElementById('acc-analyze-name').textContent = a.name;
+        document.getElementById('acc-analyze-sub').textContent = `${a.broker || 'No broker set'} \u2022 ${totalTrades} Trades`;
+        document.getElementById('acc-analyze-balance').textContent = fmtMoney(a.currentBalance, a.currency);
+        document.getElementById('acc-analyze-return').textContent = `${pnl >= 0 ? '+' : ''}${fmtMoney(pnl, a.currency)}`;
+        document.getElementById('acc-analyze-return').className = `acc-stat-value ${pnl >= 0 ? 'acc-pos' : 'acc-neg'}`;
+        document.getElementById('acc-analyze-winrate').textContent = `${Number(winRate).toFixed(1)}%`;
+        document.getElementById('acc-analyze-wins').textContent = `Wins: ${wins}`;
+        document.getElementById('acc-analyze-grosspnl').textContent = `+$${Number(a.grossProfit ?? 0).toFixed(2)}`;
+        document.getElementById('acc-analyze-best').textContent = `+$${Number(a.bestTrade ?? 0).toFixed(2)}`;
+        document.getElementById('acc-analyze-worst').textContent = `-$${Math.abs(Number(a.worstTrade ?? 0)).toFixed(2)}`;
+
+        analyzeBackdrop.classList.add('acc-open');
+      }
+      document.getElementById('acc-analyze-close').addEventListener('click', () => analyzeBackdrop.classList.remove('acc-open'));
+      analyzeBackdrop.addEventListener('click', (e) => { if (e.target === analyzeBackdrop) analyzeBackdrop.classList.remove('acc-open'); });
+
+      /* ---------------- escape key closes any open modal ---------------- */
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        closeForm();
+        closeDeleteConfirm();
+        analyzeBackdrop.classList.remove('acc-open');
+      });
+
+      /* ---------------- auth guard + live data ---------------- */
+      let unsubscribeAccounts = null;
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user){
+          window.location.href = 'login.html';
+          return;
+        }
+        currentUID = user.uid;
+
+        try { await ensureDefaultAccount(user); }
+        catch (err) { console.error('Failed to create default account:', err); }
+
+        if (unsubscribeAccounts) unsubscribeAccounts();
+        const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'));
+        unsubscribeAccounts = onSnapshot(q, (snap) => {
+          renderAccounts(snap.docs.map(d => ({ id: d.id, data: d.data() })));
+        }, (err) => {
+          console.error('Failed to load accounts:', err);
+          grid.innerHTML = '<div class="acc-empty">Could not load accounts. Please refresh.</div>';
+        });
+      });
+    </script>
+
+  </template>
+
+  <script src="eva-loader.js"></script>
+</body>
+</html>

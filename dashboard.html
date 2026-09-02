@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard — EVA</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+
+  <template id="eva-page-content">
+    <!-- EVA Trading Journal Dashboard — REBUILT FROM SCRATCH.
+         Real Firestore data only (users/{uid}/accounts/{id}/trades/{id}).
+         Old dashboard.html/js were used as visual reference ONLY — none
+         of the old JS architecture was reused. See chat for full report. -->
+
+    <style>
+      /* =========================================================
+         SCOPE: namespaced "db-", built entirely on the shared
+         layout's CSS variables (--eva-bg, --eva-surface, --eva-text,
+         --eva-gradient, etc.) so dark/light mode keep working with
+         zero extra wiring.
+         ========================================================= */
+      .db-wrap{
+        --db-radius-lg:20px;
+        --db-radius-md:14px;
+        --db-radius-sm:10px;
+        --db-gap:18px;
+
+        --db-pos:#22C55E;
+        --db-pos-bg:rgba(34,197,94,0.12);
+        --db-pos-border:rgba(34,197,94,0.35);
+
+        --db-neg:#EF4444;
+        --db-neg-bg:rgba(239,68,68,0.12);
+        --db-neg-border:rgba(239,68,68,0.35);
+
+        --db-warn:#F59E0B;
+        --db-warn-bg:rgba(245,158,11,0.12);
+        --db-warn-border:rgba(245,158,11,0.35);
+
+        max-width:1400px;
+        margin:0 auto;
+        padding-bottom:48px;
+        font-family:var(--eva-font-body);
+        color:var(--eva-text);
+      }
+      .db-wrap *{ box-sizing:border-box; min-width:0; }
+      .db-wrap h1,.db-wrap h2,.db-wrap h3,.db-wrap p,.db-wrap span,.db-wrap label{ color:inherit; }
+      .db-wrap button{ font-family:inherit; cursor:pointer; }
+      .db-wrap select,.db-wrap input{ font-family:inherit; }
+
+      .db-section{ margin-bottom:22px; }
+      .db-section-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+      .db-section-title{ font-family:var(--eva-font-display); font-size:1rem; font-weight:700; letter-spacing:-0.1px; display:flex; align-items:center; gap:8px; }
+      .db-section-title svg{ width:17px; height:17px; stroke:var(--eva-text-dim); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .db-section-sub{ font-size:0.78rem; color:var(--eva-text-dim); margin-top:2px; }
+
+      .db-card{ background:var(--eva-surface); border:1px solid var(--eva-border); border-radius:var(--db-radius-lg); padding:18px; }
+      .db-num{ font-family:var(--eva-font-display); font-weight:700; letter-spacing:-0.4px; font-variant-numeric:tabular-nums; }
+      .db-label{ font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--eva-text-dim); }
+      .db-pos{ color:var(--db-pos); }
+      .db-neg{ color:var(--db-neg); }
+      .db-neu{ color:var(--eva-text-dim); }
+
+      .db-grid{ display:grid; gap:var(--db-gap); }
+      .db-grid-4{ grid-template-columns:repeat(4,1fr); }
+      .db-grid-3{ grid-template-columns:repeat(3,1fr); }
+      @media (max-width:1100px){ .db-grid-4{ grid-template-columns:repeat(2,1fr);} .db-grid-3{ grid-template-columns:repeat(2,1fr);} }
+      @media (max-width:560px){ .db-grid-4,.db-grid-3{ grid-template-columns:repeat(2,1fr); gap:10px; } }
+
+      .db-btn{
+        display:inline-flex; align-items:center; gap:8px; padding:9px 14px;
+        border-radius:var(--db-radius-sm); border:1px solid var(--eva-border);
+        background:var(--eva-surface-2); color:var(--eva-text); font-size:0.84rem; font-weight:600;
+        transition:background-color .2s var(--eva-ease);
+      }
+      .db-btn:hover{ background:var(--eva-border); }
+      .db-btn svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .db-btn-primary{ background:var(--eva-gradient); border:none; color:#fff; }
+      .db-btn-primary:hover{ filter:brightness(1.08); }
+      .db-btn-icon{ padding:9px; }
+      .db-btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+      /* ---------- header ---------- */
+      .db-header{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+      .db-header h1{ font-family:var(--eva-font-display); font-size:1.7rem; font-weight:700; letter-spacing:-0.3px; }
+      .db-header p{ font-size:0.9rem; color:var(--eva-text-dim); margin-top:4px; }
+      .db-header-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+      /* ---------- account dropdown ---------- */
+      .db-account-dropdown{ position:relative; }
+      .db-account-trigger{
+        display:flex; align-items:center; gap:12px; padding:10px 14px 10px 12px;
+        border-radius:var(--db-radius-md); border:1px solid var(--eva-border); background:var(--eva-surface);
+        min-width:220px; max-width:280px; transition:border-color .2s var(--eva-ease), background-color .2s var(--eva-ease);
+      }
+      .db-account-trigger:hover{ background:var(--eva-surface-2); }
+      .db-account-trigger.db-open{ border-color:var(--eva-accent-1); }
+      .db-account-trigger-icon{ width:34px; height:34px; border-radius:10px; background:var(--eva-gradient); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+      .db-account-trigger-icon svg{ width:16px; height:16px; stroke:#fff; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .db-account-trigger-info{ display:flex; flex-direction:column; align-items:flex-start; min-width:0; flex:1; }
+      .db-account-trigger-name{ font-size:0.84rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+      .db-account-trigger-meta{ font-size:0.72rem; color:var(--eva-text-dim); white-space:nowrap; }
+      .db-account-trigger-chevron{ width:15px; height:15px; stroke:var(--eva-text-dim); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; transition:transform .2s var(--eva-ease); }
+      .db-account-trigger.db-open .db-account-trigger-chevron{ transform:rotate(180deg); }
+
+      .db-account-panel{
+        position:fixed; visibility:hidden; opacity:0; pointer-events:none;
+        width:300px; max-width:92vw;
+        background:var(--eva-surface); border:1px solid var(--eva-border); border-radius:var(--db-radius-md);
+        box-shadow:var(--eva-shadow); z-index:960; overflow:hidden;
+        display:flex; flex-direction:column;
+        transition:opacity .16s var(--eva-ease);
+      }
+      .db-account-panel.db-open{ visibility:visible; opacity:1; pointer-events:auto; }
+      .db-account-panel-header{ padding:12px 14px 8px; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--eva-text-dim); }
+      .db-account-list{ overflow-y:auto; max-height:280px; padding:0 6px 6px; }
+      .db-account-item{
+        display:flex; align-items:center; gap:10px; width:100%; padding:9px 8px; border-radius:10px;
+        background:none; border:none; text-align:left; color:var(--eva-text);
+      }
+      .db-account-item:hover{ background:var(--eva-surface-2); }
+      .db-account-item.db-active{ background:var(--eva-surface-2); }
+      .db-account-item-dot{ width:8px; height:8px; border-radius:50%; background:var(--db-pos); flex-shrink:0; }
+      .db-account-item-dot.db-dot-demo{ background:var(--db-warn); }
+      .db-account-item-info{ display:flex; flex-direction:column; min-width:0; flex:1; }
+      .db-account-item-name{ font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .db-account-item-meta{ font-size:0.72rem; color:var(--eva-text-dim); display:flex; gap:6px; }
+      .db-account-item-balance{ font-size:0.82rem; font-weight:700; font-variant-numeric:tabular-nums; flex-shrink:0; }
+      .db-account-item-check{ width:15px; height:15px; stroke:var(--eva-accent-1); fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+      .db-account-panel-footer{ padding:10px; border-top:1px solid var(--eva-border); }
+      .db-account-empty{ padding:22px 14px; text-align:center; color:var(--eva-text-dim); font-size:0.82rem; }
+      .db-account-backdrop{ position:fixed; inset:0; z-index:955; display:none; }
+      .db-account-backdrop.db-open{ display:block; }
+
+      /* ---------- empty state (no accounts at all) ---------- */
+      .db-empty-page{
+        display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+        padding:64px 20px; gap:14px; background:var(--eva-surface); border:1px solid var(--eva-border); border-radius:var(--db-radius-lg);
+      }
+      .db-empty-page svg{ width:44px; height:44px; stroke:var(--eva-text-dim); fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+      .db-empty-page h2{ font-family:var(--eva-font-display); font-size:1.15rem; font-weight:700; }
+      .db-empty-page p{ font-size:0.86rem; color:var(--eva-text-dim); max-width:320px; }
+
+      /* ---------- hero summary ---------- */
+      .db-hero-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:var(--db-gap); }
+      .db-hero-value{ font-size:1.9rem; }
+      @media (max-width:900px){ .db-hero-grid{ grid-template-columns:repeat(2,1fr); } }
+      .db-hero-card .db-label{ margin-bottom:6px; }
+      .db-hero-sub{ font-size:0.76rem; color:var(--eva-text-dim); margin-top:4px; }
+      @media (max-width:560px){ .db-hero-value{ font-size:1.4rem; } }
+
+      /* ---------- date filter pills ---------- */
+      .db-filter-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+      .db-pill-switch{ display:inline-flex; padding:3px; border-radius:999px; background:var(--eva-surface-2); border:1px solid var(--eva-border); gap:2px; flex-wrap:wrap; }
+      .db-pill-switch button{ padding:6px 13px; border-radius:999px; border:none; background:none; color:var(--eva-text-dim); font-size:0.78rem; font-weight:600; }
+      .db-pill-switch button.db-active{ background:var(--eva-gradient); color:#fff; }
+
+      /* ---------- stat grid ---------- */
+      .db-stat-card{ display:flex; flex-direction:column; gap:8px; }
+      .db-stat-top{ display:flex; align-items:center; justify-content:space-between; }
+      .db-stat-icon{ width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--eva-surface-2); color:var(--eva-text-dim); flex-shrink:0; }
+      .db-stat-icon svg{ width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; }
+      .db-stat-value{ font-size:1.4rem; }
+      @media (max-width:560px){ .db-stat-value{ font-size:1.1rem; } }
+
+      .db-adv-filters{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+      @media (max-width:900px){ .db-adv-filters{ grid-template-columns:repeat(2,1fr); } }
+      @media (max-width:560px){ .db-adv-filters{ grid-template-columns:1fr; } }
+      .db-field{ display:flex; flex-direction:column; gap:5px; }
+      .db-field label{ font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--eva-text-dim); }
+      .db-field select,.db-field input{ width:100%; padding:9px 10px; border-radius:var(--db-radius-sm); background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text); font-size:0.82rem; }
+
+      /* ---------- equity chart controls (timeframe + download/expand) ---------- */
+      .db-equity-controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+      .db-icon-controls{ display:flex; gap:6px; }
+      .db-chart-canvas.db-chart-expanded{
+        position:fixed; inset:16px; z-index:1050; height:auto;
+        min-height:calc(100dvh - var(--nav-height,82px) - 32px);
+        background:var(--eva-surface); border-radius:var(--db-radius-lg); box-shadow:0 24px 80px rgba(0,0,0,.35);
+      }
+      @media (max-width:640px){ .db-chart-canvas.db-chart-expanded{ inset:8px; min-height:calc(100dvh - var(--nav-height,82px) - 16px); } }
+
+      /* true browser/device Fullscreen (Fullscreen API) for the equity chart —
+         edge-to-edge on desktop and mobile, no insets/margins/rounding. */
+      #equity-chart:fullscreen,
+      #equity-chart:-webkit-full-screen,
+      #equity-chart:-ms-fullscreen{
+        position:fixed; inset:0; width:100vw; height:100vh; max-width:none; max-height:none;
+        margin:0; border-radius:0; box-shadow:none; z-index:1050;
+        background:var(--eva-surface); padding:16px; box-sizing:border-box;
+      }
+
+
+      .db-chart-card{ padding-bottom:8px; }
+      .db-chart-canvas{ width:100%; height:280px; position:relative; }
+      .db-chart-canvas.db-chart-md{ height:220px; }
+      .db-chart-empty{
+        position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:8px; color:var(--eva-text-dim); font-size:0.82rem; text-align:center; padding:0 20px;
+      }
+      .db-chart-empty svg{ width:30px; height:30px; stroke:var(--eva-text-dim); fill:none; stroke-width:1.6; }
+      .db-charts-grid{ display:grid; grid-template-columns:1fr 1fr; gap:var(--db-gap); }
+      @media (max-width:900px){ .db-charts-grid{ grid-template-columns:1fr; } }
+
+      /* ---------- calendar ---------- */
+      .db-cal-card{ overflow:visible; }
+      .db-cal-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+      .db-cal-nav{ display:flex; align-items:center; gap:10px; }
+      .db-cal-nav button{ width:30px; height:30px; border-radius:9px; border:1px solid var(--eva-border); background:var(--eva-surface-2); display:flex; align-items:center; justify-content:center; }
+      .db-cal-nav button svg{ width:16px; height:16px; stroke:var(--eva-text); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .db-cal-title{ font-family:var(--eva-font-display); font-weight:700; font-size:0.98rem; min-width:130px; text-align:center; }
+      .db-cal-today-btn{ padding:6px 12px; border-radius:999px; border:1px solid var(--eva-border); background:var(--eva-surface-2); font-size:0.78rem; font-weight:600; color:var(--eva-text); }
+
+      .db-cal-weekdays{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; margin-bottom:6px; }
+      .db-cal-weekdays span{ text-align:center; font-size:0.68rem; font-weight:700; color:var(--eva-text-dim); text-transform:uppercase; letter-spacing:.04em; }
+      .db-cal-grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; max-width:100%; }
+      .db-cal-day{
+        aspect-ratio:1/0.82; border-radius:10px; border:1px solid var(--eva-border); background:var(--eva-surface-2);
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+        font-size:0.78rem; font-weight:700; color:var(--eva-text); position:relative; min-height:52px;
+      }
+      .db-cal-day{ transition:border-color .15s var(--eva-ease); }
+      .db-cal-day.db-cal-blank{ background:transparent; border-color:transparent; }
+      .db-cal-day.db-has-trades{ cursor:pointer; }
+      .db-cal-day.db-has-trades:hover{ filter:brightness(1.08); border-color:var(--eva-accent-1); }
+      .db-cal-day.db-day-pos{ background:var(--db-pos-bg); border-color:var(--db-pos-border); color:var(--db-pos); }
+      .db-cal-day.db-day-neg{ background:var(--db-neg-bg); border-color:var(--db-neg-border); color:var(--db-neg); }
+      .db-cal-day.db-day-be{ background:var(--db-warn-bg); border-color:var(--db-warn-border); color:var(--db-warn); }
+      .db-cal-day.db-is-today{ outline:2px solid var(--eva-accent-1); outline-offset:1px; }
+      .db-cal-day-num{ font-size:0.72rem; font-weight:600; opacity:.85; }
+      .db-cal-day-pl{ font-size:0.76rem; font-weight:700; }
+      .db-cal-day-count{ font-size:0.62rem; font-weight:600; opacity:.75; }
+      @media (max-width:560px){ .db-cal-day{ font-size:0.66rem; min-height:44px; } .db-cal-day-pl{ font-size:0.66rem; } }
+
+      .db-cal-legend{ display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:0.74rem; color:var(--eva-text-dim); }
+      .db-cal-legend span{ display:inline-flex; align-items:center; gap:6px; }
+      .db-cal-legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+
+      .db-cal-week-list{ display:flex; flex-direction:column; gap:8px; }
+      .db-cal-week-row{
+        display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px;
+        border-radius:12px; border:1px solid var(--eva-border); background:var(--eva-surface-2); cursor:pointer;
+      }
+      .db-cal-week-row:hover{ filter:brightness(1.06); }
+      .db-cal-week-date{ font-size:0.85rem; font-weight:700; }
+      .db-cal-week-meta{ font-size:0.74rem; color:var(--eva-text-dim); }
+
+      .db-cal-year-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+      @media (max-width:700px){ .db-cal-year-grid{ grid-template-columns:repeat(2,1fr); } }
+      .db-cal-year-tile{
+        padding:14px; border-radius:14px; border:1px solid var(--eva-border); background:var(--eva-surface-2);
+        display:flex; flex-direction:column; gap:6px; cursor:pointer;
+      }
+      .db-cal-year-tile:hover{ filter:brightness(1.06); }
+      .db-cal-year-tile-name{ font-weight:700; font-size:0.88rem; }
+      .db-cal-year-tile-pl{ font-size:1rem; font-weight:700; }
+      .db-cal-year-tile-meta{ font-size:0.72rem; color:var(--eva-text-dim); }
+
+      /* ---------- modals ---------- */
+      .db-modal-overlay{
+        position:fixed; inset:0; background:rgba(5,7,12,0.55); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+        display:flex; align-items:center; justify-content:center; padding:16px; z-index:1000;
+        opacity:0; pointer-events:none; transition:opacity .22s var(--eva-ease);
+      }
+      .db-modal-overlay.db-open{ opacity:1; pointer-events:auto; }
+      .db-modal{
+        width:100%; max-width:520px; max-height:min(680px, calc(100dvh - var(--nav-height,82px) - 40px)); background:var(--eva-surface);
+        border:1px solid var(--eva-border); border-radius:22px; box-shadow:0 28px 90px rgba(0,0,0,.32);
+        display:flex; flex-direction:column; overflow:hidden;
+        transform:translateY(10px) scale(.98); transition:transform .22s var(--eva-ease);
+      }
+      .db-modal-overlay.db-open .db-modal{ transform:translateY(0) scale(1); }
+      .db-modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:18px 20px; border-bottom:1px solid var(--eva-border); flex-shrink:0; position:sticky; top:0; background:var(--eva-surface); z-index:2; }
+      .db-modal-title{ font-family:var(--eva-font-display); font-size:1.05rem; font-weight:700; }
+      .db-modal-sub{ font-size:0.78rem; color:var(--eva-text-dim); margin-top:3px; }
+      .db-modal-close{ width:32px; height:32px; border-radius:50%; border:1px solid var(--eva-border); background:var(--eva-surface-2); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background-color .15s var(--eva-ease), color .15s var(--eva-ease), border-color .15s var(--eva-ease); }
+      .db-modal-close:hover{ background:var(--db-neg-bg); color:var(--db-neg); border-color:var(--db-neg-border); }
+      .db-modal-close svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+      .db-modal-body{ padding:18px 20px; overflow-y:auto; flex:1; overscroll-behavior:contain; }
+      .db-modal-foot{ display:flex; justify-content:flex-end; gap:10px; padding:14px 20px; border-top:1px solid var(--eva-border); flex-shrink:0; position:sticky; bottom:0; background:var(--eva-surface); z-index:2; }
+
+      .db-day-summary{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+      .db-day-stat{ background:var(--eva-surface-2); border:1px solid var(--eva-border); border-radius:var(--db-radius-sm); padding:12px 10px; text-align:center; }
+      .db-day-stat .db-num{ font-size:1.15rem; display:block; }
+      .db-day-stat .db-label{ margin-top:3px; display:block; }
+      .db-day-trades-list{ display:flex; flex-direction:column; gap:10px; }
+      .db-trade-row{ border:1px solid var(--eva-border); border-radius:14px; padding:12px 14px; background:var(--eva-surface-2); }
+      .db-trade-row-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+      .db-trade-row-symbol{ font-weight:700; font-size:0.92rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+      .db-grade-badge{ width:22px; height:22px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:800; background:var(--eva-gradient); color:#fff; flex-shrink:0; }
+      .db-pill{ font-size:0.68rem; font-weight:700; padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em; }
+      .db-pill-long{ color:var(--db-pos); background:var(--db-pos-bg); }
+      .db-pill-short{ color:var(--db-neg); background:var(--db-neg-bg); }
+      .db-pill-tag{ color:var(--eva-text-dim); background:var(--eva-surface); border:1px solid var(--eva-border); text-transform:none; letter-spacing:0; }
+      .db-trade-row-pl{ font-weight:700; font-size:0.94rem; }
+      .db-trade-row-meta{ font-size:0.76rem; color:var(--eva-text-dim); display:flex; flex-wrap:wrap; gap:6px 10px; }
+      .db-trade-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+      .db-tag{ font-size:0.68rem; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--eva-surface); border:1px solid var(--eva-border); color:var(--eva-text-dim); }
+      .db-trade-note{ margin-top:8px; font-size:0.78rem; font-style:italic; color:var(--eva-text-dim); border-top:1px dashed var(--eva-border); padding-top:8px; }
+      .db-day-empty{ text-align:center; padding:30px 10px; color:var(--eva-text-dim); font-size:0.85rem; }
+
+      .db-field{ margin-bottom:14px; }
+      .db-field label{ display:block; font-size:0.76rem; font-weight:700; color:var(--eva-text-dim); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
+      .db-field input{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--eva-border); background:var(--eva-surface-2); color:var(--eva-text); font-size:0.9rem; }
+      .db-field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+      /* ---------- loading / toast ---------- */
+      .db-loading-row{ display:flex; align-items:center; gap:8px; color:var(--eva-text-dim); font-size:0.84rem; padding:20px; justify-content:center; }
+      .db-spin{ width:16px; height:16px; border-radius:50%; border:2px solid var(--eva-border); border-top-color:var(--eva-accent-1); animation:db-spin .7s linear infinite; }
+      @keyframes db-spin{ to{ transform:rotate(360deg); } }
+      #dbToastHost{ position:fixed; bottom:calc(var(--nav-height,82px) + 14px); left:50%; transform:translateX(-50%); z-index:1100; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+      @media (min-width:900px){ #dbToastHost{ bottom:24px; } }
+
+      [hidden]{ display:none !important; }
+    </style>
+
+    <div class="db-wrap" id="db-root" data-account-id="">
+
+      <!-- ===================== HEADER ===================== -->
+      <div class="db-header">
+        <div>
+          <h1 id="db-welcome">Dashboard</h1>
+          <p>Your journal accounts, performance, and trading calendar.</p>
+        </div>
+        <div class="db-header-actions">
+          <div class="db-account-dropdown" id="db-account-dropdown">
+            <button class="db-account-trigger" id="db-account-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+              <span class="db-account-trigger-icon">
+                <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 14h.01"/></svg>
+              </span>
+              <span class="db-account-trigger-info">
+                <span class="db-account-trigger-name" id="db-account-trigger-name">Loading…</span>
+                <span class="db-account-trigger-meta" id="db-account-trigger-meta">&nbsp;</span>
+              </span>
+              <svg class="db-account-trigger-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          <button class="db-btn db-btn-icon" id="db-refresh-btn" type="button" aria-label="Refresh dashboard">
+            <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- floating account panel (positioned by JS, clamped to viewport) -->
+      <div class="db-account-backdrop" id="db-account-backdrop"></div>
+      <div class="db-account-panel" id="db-account-panel" role="listbox" aria-label="Journal trading accounts">
+        <div class="db-account-panel-header">Journal Accounts</div>
+        <div class="db-account-list" id="db-account-list"></div>
+        <div class="db-account-panel-footer">
+          <a class="db-btn db-btn-primary" href="accounts.html" style="width:100%; justify-content:center;">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Account
+          </a>
+        </div>
+      </div>
+
+      <!-- ===================== NO-ACCOUNT EMPTY STATE ===================== -->
+      <div class="db-empty-page" id="db-no-accounts-state" hidden>
+        <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 14h.01"/></svg>
+        <h2>No trading accounts yet</h2>
+        <p>Create a journal account to start tracking balance, equity, and performance here.</p>
+        <a class="db-btn db-btn-primary" href="accounts.html">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create Account
+        </a>
+      </div>
+
+      <!-- ===================== MAIN CONTENT (hidden until an account is selected) ===================== -->
+      <div id="db-content" hidden>
+
+        <!-- Loading row shown while trades are first loading -->
+        <div class="db-loading-row" id="db-loading-row" hidden><span class="db-spin"></span> Loading trades…</div>
+
+        <!-- EQUITY CURVE -->
+        <div class="db-section">
+          <div class="db-card db-chart-card">
+            <div class="db-section-head" style="margin-bottom:8px;">
+              <div class="db-section-title">
+                <svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+                Equity Curve
+              </div>
+              <div class="db-equity-controls">
+                <div class="db-pill-switch" id="db-equity-timeframe">
+                  <button data-timeframe="1D">1D</button>
+                  <button data-timeframe="1W">1W</button>
+                  <button data-timeframe="1M">1M</button>
+                  <button data-timeframe="3M">3M</button>
+                  <button data-timeframe="YTD">YTD</button>
+                  <button class="db-active" data-timeframe="ALL">ALL</button>
+                </div>
+                <div class="db-icon-controls">
+                  <button class="db-btn db-btn-icon" id="db-equity-download" type="button" aria-label="Download chart">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </button>
+                  <button class="db-btn db-btn-icon" id="db-equity-expand" type="button" aria-label="Expand chart">
+                    <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <span class="db-section-sub" id="db-equity-sub"></span>
+            <div class="db-chart-canvas" id="equity-chart" style="margin-top:8px;">
+              <div class="db-chart-empty" id="equity-chart-empty">
+                <svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/></svg>
+                <span>Your equity curve will appear here once trades are logged.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HERO SUMMARY -->
+        <div class="db-section">
+          <div class="db-hero-grid">
+            <div class="db-card db-hero-card"><span class="db-label">Current Balance</span><div class="db-num db-hero-value" id="stat-balance">—</div><div class="db-hero-sub" id="stat-balance-sub">&nbsp;</div></div>
+            <div class="db-card db-hero-card"><span class="db-label">Equity</span><div class="db-num db-hero-value" id="stat-equity">—</div><div class="db-hero-sub" id="stat-equity-sub">&nbsp;</div></div>
+            <div class="db-card db-hero-card"><span class="db-label">Total P/L</span><div class="db-num db-hero-value" id="stat-total-pl">—</div><div class="db-hero-sub" id="stat-total-pl-sub">&nbsp;</div></div>
+            <div class="db-card db-hero-card"><span class="db-label">Today's P/L</span><div class="db-num db-hero-value" id="stat-today-pl">—</div><div class="db-hero-sub" id="stat-today-pl-sub">&nbsp;</div></div>
+          </div>
+        </div>
+
+        <!-- KEY PERFORMANCE STATS -->
+        <div class="db-section" id="key-performance">
+          <div class="db-section-head">
+            <div class="db-section-title">
+              <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8 13 13.7l-4-4L3 16"/></svg>
+              Performance Statistics
+            </div>
+          </div>
+          <div class="db-grid db-grid-4">
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Total Trades</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span></div><div class="db-num db-stat-value" id="stat-total-trades">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Win Rate</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg></span></div><div class="db-num db-stat-value" id="stat-win-rate">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Average Win</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><polyline points="17 6 23 6 23 12"/><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></span></div><div class="db-num db-stat-value" id="stat-avg-win">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Average Loss</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><polyline points="17 18 23 18 23 12"/><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg></span></div><div class="db-num db-stat-value" id="stat-avg-loss">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Profit Factor</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><path d="M8 4h8l1 4-5 3-5-3 1-4z"/><path d="M12 11v9M8 20h8"/></svg></span></div><div class="db-num db-stat-value" id="stat-profit-factor">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Average R</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18.7 8 13 13.7l-4-4L3 16"/></svg></span></div><div class="db-num db-stat-value" id="stat-avg-r">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Largest Win</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg></span></div><div class="db-num db-stat-value" id="stat-largest-win">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Largest Loss</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="4.2" y1="4.2" x2="19.8" y2="19.8"/></svg></span></div><div class="db-num db-stat-value" id="stat-largest-loss">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Max Drawdown</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><path d="M22 22H2V2"/><path d="M4 18l6-8 4 3 6-9"/></svg></span></div><div class="db-num db-stat-value" id="stat-drawdown">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Recovery Factor</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span></div><div class="db-num db-stat-value" id="stat-recovery">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Best Day</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/></svg></span></div><div class="db-num db-stat-value" id="stat-best-day">—</div></div>
+            <div class="db-card db-stat-card"><div class="db-stat-top"><span class="db-label">Worst Day</span><span class="db-stat-icon"><svg viewBox="0 0 24 24"><path d="M22 22H2V2"/><path d="M4 18l6-8 4 3 6-9"/></svg></span></div><div class="db-num db-stat-value" id="stat-worst-day">—</div></div>
+          </div>
+        </div>
+
+        <!-- ADVANCED FILTERS (real trade fields — Strategy/Session/Result/Symbol) -->
+        <div class="db-section" id="advanced-filters">
+          <div class="db-section-head">
+            <div class="db-section-title">
+              <svg viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+              Filters
+            </div>
+            <button class="db-btn" type="button" id="db-filters-reset">Reset</button>
+          </div>
+          <div class="db-card">
+            <div class="db-filter-row">
+              <div class="db-pill-switch" id="db-date-filter">
+                <button data-range="today">Today</button>
+                <button data-range="week">This Week</button>
+                <button class="db-active" data-range="month">This Month</button>
+                <button data-range="year">This Year</button>
+                <button data-range="all">All Time</button>
+                <button data-range="custom">Custom</button>
+              </div>
+              <span class="db-section-sub" id="db-filter-summary"></span>
+            </div>
+            <div class="db-adv-filters">
+              <div class="db-field"><label for="db-filter-account">Account</label><select id="db-filter-account"><option value="">All accounts</option></select></div>
+              <div class="db-field"><label for="db-filter-strategy">Strategy</label><select id="db-filter-strategy"><option value="">All strategies</option></select></div>
+              <div class="db-field"><label for="db-filter-session">Session</label><select id="db-filter-session"><option value="">All sessions</option></select></div>
+              <div class="db-field"><label for="db-filter-result">Trade Result</label>
+                <select id="db-filter-result">
+                  <option value="">All results</option>
+                  <option value="WIN">Wins</option>
+                  <option value="LOSS">Losses</option>
+                  <option value="BREAK-EVEN">Break-even</option>
+                </select>
+              </div>
+              <div class="db-field"><label for="db-filter-symbol">Symbol</label><input id="db-filter-symbol" type="text" placeholder="e.g. NQ"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DAILY P/L + DRAWDOWN + GROWTH + GOAL PROGRESS -->
+        <div class="db-section">
+          <div class="db-charts-grid">
+            <div class="db-card db-chart-card">
+              <div class="db-section-head" style="margin-bottom:8px;"><div class="db-section-title">Daily P/L</div></div>
+              <div class="db-chart-canvas db-chart-md" id="daily-pl-chart">
+                <div class="db-chart-empty"><span>No trades in this range yet.</span></div>
+              </div>
+            </div>
+            <div class="db-card db-chart-card">
+              <div class="db-section-head" style="margin-bottom:8px;"><div class="db-section-title">Drawdown</div></div>
+              <div class="db-chart-canvas db-chart-md" id="drawdown-chart">
+                <div class="db-chart-empty"><span>No trades in this range yet.</span></div>
+              </div>
+            </div>
+            <div class="db-card db-chart-card">
+              <div class="db-section-head" style="margin-bottom:8px;"><div class="db-section-title">Growth</div></div>
+              <div class="db-chart-canvas db-chart-md" id="growth-chart">
+                <div class="db-chart-empty"><span>Account growth will appear once trades are logged.</span></div>
+              </div>
+            </div>
+            <div class="db-card db-chart-card">
+              <div class="db-section-head" style="margin-bottom:8px;"><div class="db-section-title">Challenge / Goal Progress</div></div>
+              <div class="db-chart-canvas db-chart-md" id="challenge-progress-chart">
+                <div class="db-chart-empty" id="challenge-progress-empty"><span>No profit target set on this account.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TRADING CALENDAR -->
+        <div class="db-section" id="trading-calendar">
+          <div class="db-card db-cal-card">
+            <div class="db-cal-head">
+              <div class="db-section-title">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Trading Calendar
+              </div>
+              <div class="db-pill-switch" id="db-cal-view-switch">
+                <button class="db-active" data-view="month">Month</button>
+                <button data-view="week">Week</button>
+                <button data-view="year">Year</button>
+              </div>
+            </div>
+            <div class="db-cal-head">
+              <button class="db-cal-today-btn" id="db-cal-today-btn" type="button">Today</button>
+              <div class="db-cal-nav">
+                <button id="db-cal-prev-btn" type="button" aria-label="Previous"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <span class="db-cal-title" id="db-cal-title">—</span>
+                <button id="db-cal-next-btn" type="button" aria-label="Next"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+              </div>
+              <span style="width:1px;"></span>
+            </div>
+
+            <div id="db-cal-month-view">
+              <div class="db-cal-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div>
+              <div class="db-cal-grid" id="db-cal-grid"></div>
+              <div class="db-cal-legend">
+                <span><i style="background:var(--db-pos);"></i> Profitable day</span>
+                <span><i style="background:var(--db-neg);"></i> Loss day</span>
+                <span><i style="background:var(--db-warn);"></i> Break-even day</span>
+              </div>
+            </div>
+
+            <div id="db-cal-week-view" hidden>
+              <div class="db-cal-week-list" id="db-cal-week-list"></div>
+            </div>
+
+            <div id="db-cal-year-view" hidden>
+              <div class="db-cal-year-grid" id="db-cal-year-grid"></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /db-content -->
+
+      <!-- ===================== DAY MODAL ===================== -->
+      <div class="db-modal-overlay" id="db-day-modal" aria-hidden="true">
+        <div class="db-modal" role="dialog" aria-modal="true" aria-labelledby="db-day-modal-title">
+          <div class="db-modal-head">
+            <div>
+              <div class="db-modal-title" id="db-day-modal-title">—</div>
+              <div class="db-modal-sub" id="db-day-modal-sub">&nbsp;</div>
+            </div>
+            <button class="db-modal-close" type="button" data-close-modal="db-day-modal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="db-modal-body">
+            <div class="db-day-summary">
+              <div class="db-day-stat"><div class="db-num" id="db-day-pl">—</div><span class="db-label">P/L</span></div>
+              <div class="db-day-stat"><div class="db-num" id="db-day-count">—</div><span class="db-label">Trades</span></div>
+              <div class="db-day-stat"><div class="db-num" id="db-day-winrate">—</div><span class="db-label">Win Rate</span></div>
+            </div>
+            <div class="db-day-trades-list" id="db-day-trades-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== CUSTOM RANGE MODAL ===================== -->
+      <div class="db-modal-overlay" id="db-custom-range-modal" aria-hidden="true">
+        <div class="db-modal" style="max-width:400px;" role="dialog" aria-modal="true" aria-labelledby="db-custom-range-title">
+          <div class="db-modal-head">
+            <div class="db-modal-title" id="db-custom-range-title">Custom Date Range</div>
+            <button class="db-modal-close" type="button" data-close-modal="db-custom-range-modal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="db-modal-body">
+            <div class="db-field-row">
+              <div class="db-field"><label for="db-custom-start">Start Date</label><input type="date" id="db-custom-start"></div>
+              <div class="db-field"><label for="db-custom-end">End Date</label><input type="date" id="db-custom-end"></div>
+            </div>
+          </div>
+          <div class="db-modal-foot">
+            <button class="db-btn" type="button" data-close-modal="db-custom-range-modal">Cancel</button>
+            <button class="db-btn db-btn-primary" id="db-custom-range-apply" type="button">Apply</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /db-wrap -->
+
+    <!-- Dashboard runtime dependencies. These scripts live inside the template so
+         eva-loader can safely recreate them after the page content is mounted. -->
+    <script type="module" src="dashboard.js"></script>
+  </template>
+
+  <script src="eva-loader.js"></script>
+</body>
+</html>

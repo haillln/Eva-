@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>challenge — EVA</title>
+  <!-- Apache ECharts powers every chart on the Challenge page. Loaded as a
+       classic (non-module) script so it is available on window.echarts
+       before challenge.js (a deferred module script) executes. -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0B0E14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+</head>
+<body>
+
+  <template id="eva-page-content">
+    <!-- ============================================================
+         EVA — FUNDED CHALLENGE COMMAND CENTER
+         Stage 1: HTML + CSS structure only. No JavaScript logic,
+         no Firebase calls. All values below are demo/placeholder
+         content only, structured with predictable IDs/classes so
+         a later JS/Firebase stage can populate everything without
+         touching this markup.
+         ============================================================ -->
+
+    <style>
+      /* =========================================================
+         SCOPE: everything below is namespaced with "ch-" and only
+         reuses the CSS custom properties already defined by the
+         shared layout (--eva-bg, --eva-surface, --eva-text, etc.)
+         so dark/light mode and the existing theme system keep
+         working with zero extra wiring.
+         ========================================================= */
+      .ch-wrap{
+        --ch-radius-lg:20px;
+        --ch-radius-md:14px;
+        --ch-radius-sm:10px;
+        --ch-gap:18px;
+
+        --ch-safe:#22C55E;
+        --ch-safe-bg:rgba(34,197,94,0.12);
+        --ch-safe-border:rgba(34,197,94,0.35);
+
+        --ch-warn:#F59E0B;
+        --ch-warn-bg:rgba(245,158,11,0.12);
+        --ch-warn-border:rgba(245,158,11,0.35);
+
+        --ch-danger:#EF4444;
+        --ch-danger-bg:rgba(239,68,68,0.12);
+        --ch-danger-border:rgba(239,68,68,0.35);
+
+        --ch-info:var(--eva-accent-1);
+        --ch-info-bg:color-mix(in srgb, var(--eva-accent-1) 12%, transparent);
+        --ch-info-border:color-mix(in srgb, var(--eva-accent-1) 35%, transparent);
+
+        max-width:1400px;
+        margin:0 auto;
+        padding-bottom:48px;
+        font-family:var(--eva-font-body);
+        color:var(--eva-text);
+      }
+      .ch-wrap *{ box-sizing:border-box; }
+      .ch-wrap h1,.ch-wrap h2,.ch-wrap h3,.ch-wrap p,.ch-wrap span,.ch-wrap label{ color:inherit; }
+      .ch-wrap button{ font-family:inherit; cursor:pointer; }
+      .ch-wrap select,.ch-wrap input{ font-family:inherit; }
+
+      .ch-section{ margin-bottom:22px; }
+      .ch-section-head{
+        display:flex; align-items:center; justify-content:space-between;
+        gap:12px; margin-bottom:12px; flex-wrap:wrap;
+      }
+      .ch-section-title{
+        font-family:var(--eva-font-display);
+        font-size:1rem; font-weight:700; letter-spacing:-0.1px;
+        display:flex; align-items:center; gap:8px;
+      }
+      .ch-section-title svg{ width:17px; height:17px; stroke:var(--eva-text-dim); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .ch-section-sub{ font-size:0.78rem; color:var(--eva-text-dim); margin-top:2px; }
+
+      .ch-card{
+        background:var(--eva-surface);
+        border:1px solid var(--eva-border);
+        border-radius:var(--ch-radius-lg);
+        padding:18px;
+      }
+
+      /* numbers dominate visually per the hierarchy spec */
+      .ch-num{ font-family:var(--eva-font-display); font-weight:700; letter-spacing:-0.4px; font-variant-numeric:tabular-nums; }
+      .ch-label{ font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--eva-text-dim); }
+
+      .ch-pill{
+        display:inline-flex; align-items:center; gap:5px;
+        padding:3px 10px; border-radius:999px;
+        font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;
+        border:1px solid transparent;
+      }
+      .ch-pill-dot{ width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
+      .ch-pill-safe{ background:var(--ch-safe-bg); color:var(--ch-safe); border-color:var(--ch-safe-border); }
+      .ch-pill-warn{ background:var(--ch-warn-bg); color:var(--ch-warn); border-color:var(--ch-warn-border); }
+      .ch-pill-danger{ background:var(--ch-danger-bg); color:var(--ch-danger); border-color:var(--ch-danger-border); }
+      .ch-pill-info{ background:var(--ch-info-bg); color:var(--ch-info); border-color:var(--ch-info-border); }
+      .ch-pill-neutral{ background:var(--eva-surface-2); color:var(--eva-text-dim); border-color:var(--eva-border); }
+
+      /* controlled glow — strategic, not everywhere */
+      .ch-glow-safe{ box-shadow:0 0 0 1px var(--ch-safe-border), 0 0 22px -6px rgba(34,197,94,0.45); }
+      .ch-glow-warn{ box-shadow:0 0 0 1px var(--ch-warn-border), 0 0 22px -6px rgba(245,158,11,0.5); }
+      .ch-glow-danger{ box-shadow:0 0 0 1px var(--ch-danger-border), 0 0 26px -6px rgba(239,68,68,0.55); }
+      .ch-glow-info{ box-shadow:0 0 0 1px var(--ch-info-border), 0 0 22px -6px color-mix(in srgb, var(--eva-accent-1) 55%, transparent); }
+
+      .ch-bar-track{
+        width:100%; height:8px; border-radius:999px;
+        background:var(--eva-surface-2); overflow:hidden; position:relative;
+      }
+      .ch-bar-fill{
+        height:100%; border-radius:999px;
+        background:linear-gradient(90deg, var(--eva-accent-1), var(--eva-accent-2));
+        transition:width .4s var(--eva-ease);
+      }
+      .ch-bar-fill.ch-fill-safe{ background:linear-gradient(90deg, #16A34A, var(--ch-safe)); }
+      .ch-bar-fill.ch-fill-warn{ background:linear-gradient(90deg, #D97706, var(--ch-warn)); }
+      .ch-bar-fill.ch-fill-danger{ background:linear-gradient(90deg, #DC2626, var(--ch-danger)); }
+
+      .ch-grid{ display:grid; gap:var(--ch-gap); }
+      .ch-grid-4{ grid-template-columns:repeat(4,1fr); }
+      .ch-grid-3{ grid-template-columns:repeat(3,1fr); }
+      .ch-grid-2{ grid-template-columns:repeat(2,1fr); }
+      @media (max-width:1100px){ .ch-grid-4{ grid-template-columns:repeat(2,1fr); } .ch-grid-3{ grid-template-columns:repeat(2,1fr);} }
+      @media (max-width:640px){ .ch-grid-4,.ch-grid-3,.ch-grid-2{ grid-template-columns:1fr; } }
+
+      .ch-btn{
+        display:inline-flex; align-items:center; gap:7px;
+        padding:9px 14px; border-radius:var(--ch-radius-sm);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        color:var(--eva-text); font-size:0.82rem; font-weight:600;
+        transition:background-color .15s var(--eva-ease), border-color .15s var(--eva-ease);
+      }
+      .ch-btn:hover{ background:color-mix(in srgb, var(--eva-accent-1) 10%, var(--eva-surface-2)); border-color:var(--eva-info-border); }
+      .ch-btn svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+      .ch-btn-icon{ width:36px; height:36px; padding:0; justify-content:center; }
+      .ch-btn-primary{ background:var(--eva-gradient); border:none; color:#fff; }
+      .ch-btn-danger{ background:var(--ch-danger-bg); border:1px solid var(--ch-danger-border); color:var(--ch-danger); }
+      .ch-btn-danger:hover{ background:var(--ch-danger); color:#fff; }
+      .ch-account-panel-actions{ display:flex; gap:8px; margin-top:8px; }
+      .ch-account-panel-actions .ch-btn{ flex:1; justify-content:center; font-size:0.78rem; padding:8px 10px; }
+      .ch-delete-warning{
+        display:flex; flex-direction:column; gap:4px; padding:14px; border-radius:var(--ch-radius-md);
+        background:var(--ch-danger-bg); border:1px solid var(--ch-danger-border); color:var(--eva-text);
+      }
+      .ch-delete-warning b{ color:var(--ch-danger); }
+      .ch-day-trade-row{
+        display:flex; align-items:center; justify-content:space-between; gap:10px;
+        padding:10px 12px; border-radius:var(--ch-radius-sm); background:var(--eva-surface-2); border:1px solid var(--eva-border);
+      }
+
+      .ch-empty{
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:8px; padding:34px 18px; text-align:center; color:var(--eva-text-dim);
+        border:1px dashed var(--eva-border); border-radius:var(--ch-radius-md);
+      }
+      .ch-empty svg{ width:26px; height:26px; stroke:var(--eva-text-dim); fill:none; stroke-width:1.6; }
+      .ch-empty strong{ color:var(--eva-text); font-size:0.86rem; font-weight:600; }
+      .ch-empty span{ font-size:0.78rem; }
+
+      .ch-skel{ position:relative; overflow:hidden; background:var(--eva-surface-2); border-radius:8px; }
+      .ch-skel::after{
+        content:""; position:absolute; inset:0;
+        background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--eva-text) 8%, transparent), transparent);
+        animation:ch-shimmer 1.4s infinite;
+      }
+      @keyframes ch-shimmer{ 0%{ transform:translateX(-100%);} 100%{ transform:translateX(100%);} }
+
+      .ch-error{
+        display:flex; align-items:center; gap:12px; padding:16px;
+        border-radius:var(--ch-radius-md); background:var(--ch-danger-bg);
+        border:1px solid var(--ch-danger-border); color:var(--ch-danger);
+        font-size:0.85rem; font-weight:600;
+      }
+      .ch-error svg{ width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2; flex-shrink:0; }
+      .ch-error-actions{ margin-left:auto; }
+      .ch-error-actions button{ color:var(--ch-danger); border-color:var(--ch-danger-border); background:transparent; }
+
+      /* ---------------------------------------------------------
+         1. HEADER + ACCOUNT SELECTOR
+         --------------------------------------------------------- */
+      .ch-header{
+        display:flex; align-items:flex-start; justify-content:space-between;
+        gap:16px; flex-wrap:wrap; margin-bottom:20px;
+      }
+      .ch-header h1{
+        font-family:var(--eva-font-display); font-size:1.7rem; font-weight:700; letter-spacing:-0.3px;
+      }
+      .ch-header p{ color:var(--eva-text-dim); font-size:0.9rem; margin-top:4px; }
+
+      .ch-account-dropdown{ position:relative; }
+      .ch-account-trigger{
+        display:flex; align-items:center; gap:12px;
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+        border-radius:var(--ch-radius-md); padding:10px 14px 10px 12px;
+        min-width:230px; cursor:pointer;
+        transition:border-color .2s var(--eva-ease), background-color .2s var(--eva-ease);
+      }
+      .ch-account-trigger:hover{ background:var(--eva-surface-2); }
+      .ch-account-trigger.ch-open{ border-color:var(--eva-accent-1); }
+      .ch-account-trigger-icon{
+        width:34px; height:34px; border-radius:10px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        background:var(--eva-gradient); color:#fff;
+      }
+      .ch-account-trigger-icon svg{ width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2; }
+      .ch-account-trigger-info{ flex:1; min-width:0; }
+      .ch-account-trigger-name{ font-size:0.86rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .ch-account-trigger-meta{ font-size:0.72rem; color:var(--eva-text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .ch-account-trigger-chevron{ width:16px; height:16px; stroke:var(--eva-text-dim); fill:none; stroke-width:2; flex-shrink:0; transition:transform .2s var(--eva-ease); }
+      .ch-account-trigger.ch-open .ch-account-trigger-chevron{ transform:rotate(180deg); }
+
+      .ch-account-panel{
+        position:absolute; top:calc(100% + 8px); right:0; left:auto;
+        min-width:300px; max-width:340px; max-height:380px; overflow-y:auto;
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+        border-radius:var(--ch-radius-md); box-shadow:0 16px 40px rgba(0,0,0,0.35);
+        z-index:60; display:none;
+      }
+      .ch-account-panel.ch-open{ display:block; }
+      .ch-account-panel-header{
+        padding:12px 16px 8px; font-size:0.72rem; font-weight:700; text-transform:uppercase;
+        letter-spacing:0.06em; color:var(--eva-text-dim); border-bottom:1px solid var(--eva-border);
+      }
+      .ch-account-list{ padding:6px; display:flex; flex-direction:column; gap:2px; }
+      .ch-account-panel-footer{ padding:8px; border-top:1px solid var(--eva-border); }
+      .ch-account-item{
+        display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+        background:transparent; border:none; border-radius:var(--ch-radius-sm);
+        padding:10px; transition:background-color .15s var(--eva-ease);
+      }
+      .ch-account-item:hover{ background:var(--eva-surface-2); }
+      .ch-account-item.ch-active{ background:color-mix(in srgb, var(--eva-accent-1) 12%, transparent); }
+      .ch-account-item-info{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+      .ch-account-item-name{ font-size:0.86rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .ch-account-item-meta{ font-size:0.74rem; color:var(--eva-text-dim); }
+
+      /* ---------------------------------------------------------
+         2. CHALLENGE STATUS BANNER
+         --------------------------------------------------------- */
+      .ch-status-banner{
+        display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+        padding:16px 18px; border-radius:var(--ch-radius-lg);
+        background:var(--eva-surface); border:1px solid var(--eva-border);
+      }
+      .ch-status-banner.ch-glow-safe,.ch-status-banner.ch-glow-warn,.ch-status-banner.ch-glow-danger,.ch-status-banner.ch-glow-info{ border-color:transparent; }
+      .ch-status-icon{
+        width:44px; height:44px; border-radius:13px; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+      }
+      .ch-status-icon svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .ch-status-safe .ch-status-icon{ background:var(--ch-safe-bg); color:var(--ch-safe); }
+      .ch-status-warn .ch-status-icon{ background:var(--ch-warn-bg); color:var(--ch-warn); }
+      .ch-status-danger .ch-status-icon{ background:var(--ch-danger-bg); color:var(--ch-danger); }
+      .ch-status-info .ch-status-icon{ background:var(--ch-info-bg); color:var(--ch-info); }
+      .ch-status-body{ flex:1; min-width:200px; }
+      .ch-status-title{ font-family:var(--eva-font-display); font-size:1.05rem; font-weight:700; }
+      .ch-status-desc{ font-size:0.82rem; color:var(--eva-text-dim); margin-top:2px; }
+      .ch-status-meta{ display:flex; gap:22px; flex-wrap:wrap; }
+      .ch-status-meta-item{ text-align:right; }
+      .ch-status-meta-item .ch-num{ font-size:1.1rem; display:block; }
+      .ch-status-meta-item .ch-label{ font-size:0.66rem; }
+
+      /* ---------------------------------------------------------
+         3. ACCOUNT OVERVIEW METRIC CARDS
+         --------------------------------------------------------- */
+      .ch-metric-card{ display:flex; flex-direction:column; gap:10px; }
+      .ch-metric-top{ display:flex; align-items:center; justify-content:space-between; }
+      .ch-metric-icon{ width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--eva-surface-2); color:var(--eva-text-dim); }
+      .ch-metric-icon svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; }
+      .ch-metric-value{ font-size:1.55rem; line-height:1.1; }
+      .ch-metric-value.ch-pos{ color:var(--ch-safe); }
+      .ch-metric-value.ch-neg{ color:var(--ch-danger); }
+      .ch-metric-foot{ font-size:0.76rem; color:var(--eva-text-dim); display:flex; align-items:center; gap:6px; }
+      .ch-metric-foot.ch-pos{ color:var(--ch-safe); }
+      .ch-metric-foot.ch-neg{ color:var(--ch-danger); }
+
+      /* ---------------------------------------------------------
+         4. PHASE PROGRESSION
+         --------------------------------------------------------- */
+      .ch-phase-track{ display:flex; gap:14px; align-items:stretch; overflow-x:auto; padding-bottom:4px; }
+      .ch-phase-node{
+        flex:1; min-width:200px; padding:16px; border-radius:var(--ch-radius-md);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        display:flex; flex-direction:column; gap:10px; position:relative;
+      }
+      .ch-phase-node.ch-phase-active{ background:var(--ch-info-bg); border-color:var(--ch-info-border); }
+      .ch-phase-node.ch-phase-passed{ background:var(--ch-safe-bg); border-color:var(--ch-safe-border); }
+      .ch-phase-node.ch-phase-locked{ opacity:0.55; }
+      .ch-phase-node-head{ display:flex; align-items:center; justify-content:space-between; }
+      .ch-phase-node-name{ font-family:var(--eva-font-display); font-weight:700; font-size:0.88rem; }
+      .ch-phase-node-icon{ width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+      .ch-phase-node-icon svg{ width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2.4; stroke-linecap:round; }
+      .ch-phase-passed .ch-phase-node-icon{ background:var(--ch-safe); color:#fff; }
+      .ch-phase-active .ch-phase-node-icon{ background:var(--eva-gradient); color:#fff; }
+      .ch-phase-locked .ch-phase-node-icon{ background:var(--eva-surface); color:var(--eva-text-dim); }
+      .ch-phase-node-stat{ font-size:0.76rem; color:var(--eva-text-dim); display:flex; justify-content:space-between; }
+      .ch-phase-node-stat b{ color:var(--eva-text); font-weight:700; }
+      .ch-phase-connector{ width:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--eva-text-dim); }
+      .ch-phase-connector svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; }
+      @media (max-width:900px){ .ch-phase-track{ flex-direction:column; } .ch-phase-connector{ width:auto; height:16px; transform:rotate(90deg); } }
+
+      /* ---------------------------------------------------------
+         5. DRAWDOWN + DANGER ZONE
+         --------------------------------------------------------- */
+      .ch-dd-card{ display:flex; flex-direction:column; gap:12px; }
+      .ch-dd-row{ display:flex; justify-content:space-between; align-items:baseline; }
+      .ch-dd-used{ font-size:0.82rem; color:var(--eva-text-dim); }
+      .ch-dd-used b{ color:var(--eva-text); font-weight:700; }
+      .ch-dd-remaining{ display:flex; justify-content:space-between; align-items:center; font-size:0.78rem; color:var(--eva-text-dim); }
+      .ch-dd-remaining .ch-num{ font-size:0.95rem; color:var(--eva-text); }
+
+      .ch-danger-panel{
+        display:flex; flex-direction:column; align-items:center; text-align:center;
+        gap:6px; padding:26px 18px;
+      }
+      .ch-danger-ring{ position:relative; width:150px; height:150px; margin-bottom:6px; }
+      .ch-danger-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+      .ch-danger-ring-track{ fill:none; stroke:var(--eva-surface-2); stroke-width:10; }
+      .ch-danger-ring-fill{ fill:none; stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset .5s var(--eva-ease), stroke .3s; }
+      .ch-danger-ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+      .ch-danger-ring-center .ch-num{ font-size:2rem; }
+      .ch-danger-ring-center span{ font-size:0.66rem; color:var(--eva-text-dim); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; max-width:100px; }
+      .ch-danger-breach-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; margin-top:14px; }
+      .ch-danger-breach-item{ background:var(--eva-surface-2); border-radius:var(--ch-radius-sm); padding:10px; text-align:left; }
+      .ch-danger-breach-item .ch-num{ font-size:1rem; }
+
+      /* ---------------------------------------------------------
+         6. RISK ENGINE + NEXT TRADE
+         --------------------------------------------------------- */
+      .ch-risk-list{ display:flex; flex-direction:column; gap:0; }
+      .ch-risk-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--eva-border); font-size:0.84rem; }
+      .ch-risk-row:last-child{ border-bottom:none; }
+      .ch-risk-row .ch-num{ font-size:0.9rem; }
+
+      .ch-next-trade-card{ display:flex; flex-direction:column; gap:14px; }
+      .ch-next-trade-head{ display:flex; align-items:center; justify-content:space-between; }
+      .ch-next-trade-tabs{ display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+      .ch-next-trade-tab{
+        flex-shrink:0; padding:6px 12px; border-radius:999px; font-size:0.76rem; font-weight:700;
+        background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text-dim);
+      }
+      .ch-next-trade-tab.ch-active{ background:var(--eva-gradient); color:#fff; border-color:transparent; }
+      .ch-next-trade-body{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+      @media (max-width:520px){ .ch-next-trade-body{ grid-template-columns:1fr; } }
+      .ch-next-trade-stat{ background:var(--eva-surface-2); border-radius:var(--ch-radius-md); padding:14px; }
+      .ch-next-trade-stat .ch-num{ font-size:1.4rem; }
+      .ch-next-trade-status{ display:flex; align-items:center; justify-content:center; gap:8px; padding:12px; border-radius:var(--ch-radius-md); font-weight:700; font-size:0.86rem; }
+
+      /* ---------------------------------------------------------
+         7. RULE MONITOR
+         --------------------------------------------------------- */
+      .ch-rule-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+      @media (max-width:700px){ .ch-rule-grid{ grid-template-columns:1fr; } }
+      .ch-rule-row{
+        display:flex; align-items:center; justify-content:space-between; gap:10px;
+        padding:12px 14px; border-radius:var(--ch-radius-sm); background:var(--eva-surface-2); border:1px solid var(--eva-border);
+      }
+      .ch-rule-name{ font-size:0.84rem; font-weight:600; display:flex; align-items:center; gap:8px; }
+      .ch-rule-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+      .ch-rule-dot.ch-safe{ background:var(--ch-safe); box-shadow:0 0 8px var(--ch-safe); }
+      .ch-rule-dot.ch-warn{ background:var(--ch-warn); box-shadow:0 0 8px var(--ch-warn); }
+      .ch-rule-dot.ch-danger{ background:var(--ch-danger); box-shadow:0 0 8px var(--ch-danger); }
+      .ch-rule-dot.ch-neutral{ background:var(--eva-text-dim); }
+      .ch-rule-value{ font-size:0.78rem; color:var(--eva-text-dim); text-align:right; }
+
+      /* ---------------------------------------------------------
+         8. CHARTS (equity / performance / drawdown) + PERIOD SWITCH
+         --------------------------------------------------------- */
+      .ch-period-switch{ display:flex; gap:4px; padding:4px; border-radius:999px; background:var(--eva-surface-2); border:1px solid var(--eva-border); }
+      .ch-period-btn{ padding:6px 13px; border-radius:999px; font-size:0.74rem; font-weight:700; color:var(--eva-text-dim); background:transparent; border:none; }
+      .ch-period-btn.ch-active{ background:var(--eva-surface); color:var(--eva-text); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+
+      .ch-chart-card{ display:flex; flex-direction:column; gap:14px; }
+      .ch-chart-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:0.76rem; color:var(--eva-text-dim); }
+      .ch-chart-legend span{ display:inline-flex; align-items:center; gap:6px; }
+      .ch-chart-legend i{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+      .ch-chart-canvas{
+        width:100%; height:260px; border-radius:var(--ch-radius-md);
+        background:linear-gradient(180deg, var(--eva-surface-2) 0%, transparent 100%);
+        position:relative; overflow:hidden;
+      }
+      .ch-chart-canvas svg{ width:100%; height:100%; display:block; }
+      .ch-chart-canvas .ch-echart-mount{ width:100%; height:100%; display:block; }
+      .ch-chart-canvas.ch-chart-sm{ height:170px; }
+      .ch-chart-tooltip-area{ position:absolute; inset:0; pointer-events:none; }
+
+      .ch-perf-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:var(--ch-gap); }
+      @media (max-width:1100px){ .ch-perf-grid{ grid-template-columns:repeat(2,1fr);} }
+      @media (max-width:640px){ .ch-perf-grid{ grid-template-columns:1fr;} }
+
+      /* ---------------------------------------------------------
+         9. HIERARCHICAL PERFORMANCE EXPLORER
+         --------------------------------------------------------- */
+      .ch-explorer-crumbs{ display:flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--eva-text-dim); flex-wrap:wrap; }
+      .ch-explorer-crumbs button{ background:none; border:none; color:var(--eva-text-dim); font-weight:700; font-size:0.78rem; padding:2px 4px; border-radius:6px; }
+      .ch-explorer-crumbs button.ch-active{ color:var(--eva-text); }
+      .ch-explorer-crumbs button:hover{ background:var(--eva-surface-2); }
+      .ch-explorer-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:12px; }
+      @media (max-width:700px){ .ch-explorer-grid{ grid-template-columns:repeat(3,1fr);} }
+      @media (max-width:480px){ .ch-explorer-grid{ grid-template-columns:repeat(2,1fr);} }
+      .ch-explorer-cell{
+        padding:12px 10px; border-radius:var(--ch-radius-sm); background:var(--eva-surface-2);
+        border:1px solid var(--eva-border); text-align:center; display:flex; flex-direction:column; gap:4px;
+      }
+      .ch-explorer-cell:hover{ border-color:var(--eva-accent-1); }
+      .ch-explorer-cell-label{ font-size:0.72rem; font-weight:700; color:var(--eva-text-dim); }
+      .ch-explorer-cell-value{ font-size:0.86rem; font-weight:700; }
+      .ch-explorer-cell.ch-pos .ch-explorer-cell-value{ color:var(--ch-safe); }
+      .ch-explorer-cell.ch-neg .ch-explorer-cell-value{ color:var(--ch-danger); }
+      .ch-explorer-cell.ch-empty-cell{ opacity:0.4; }
+
+      /* ---------------------------------------------------------
+         10. CALENDAR
+         --------------------------------------------------------- */
+      .ch-cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+      .ch-cal-nav{ display:flex; align-items:center; gap:10px; }
+      .ch-cal-nav button{ width:30px; height:30px; border-radius:8px; background:var(--eva-surface-2); border:1px solid var(--eva-border); display:flex; align-items:center; justify-content:center; }
+      .ch-cal-nav button svg{ width:15px; height:15px; stroke:var(--eva-text); fill:none; stroke-width:2; }
+      .ch-cal-title{ font-family:var(--eva-font-display); font-weight:700; font-size:0.92rem; min-width:120px; text-align:center; }
+      .ch-cal-view-switch{ display:flex; gap:4px; padding:3px; border-radius:999px; background:var(--eva-surface-2); border:1px solid var(--eva-border); }
+      .ch-cal-view-switch button{ padding:5px 11px; border-radius:999px; font-size:0.7rem; font-weight:700; color:var(--eva-text-dim); background:none; border:none; }
+      .ch-cal-view-switch button.ch-active{ background:var(--eva-surface); color:var(--eva-text); }
+
+      .ch-phase-rules-switch{ display:flex; gap:4px; padding:3px; border-radius:999px; background:var(--eva-surface-2); border:1px solid var(--eva-border); margin-bottom:12px; }
+      .ch-phase-rules-switch button{ flex:1; padding:6px 11px; border-radius:999px; font-size:0.72rem; font-weight:700; color:var(--eva-text-dim); background:none; border:none; }
+      .ch-phase-rules-switch button.ch-active{ background:var(--eva-surface); color:var(--eva-text); }
+
+      .ch-cal-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; max-width:100%; }
+      .ch-cal-dow{ text-align:center; font-size:0.68rem; font-weight:700; color:var(--eva-text-dim); text-transform:uppercase; padding-bottom:4px; }
+      .ch-cal-day{
+        aspect-ratio:1/0.85; border-radius:10px; background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+        font-size:0.72rem; position:relative; padding:4px; min-width:0; max-width:100%; overflow:hidden;
+      }
+      .ch-cal-day:hover{ border-color:var(--eva-accent-1); }
+      .ch-cal-day.ch-cal-empty{ background:transparent; border-color:transparent; }
+      .ch-cal-day .ch-cal-date{ font-weight:700; color:var(--eva-text-dim); font-size:0.68rem; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      .ch-cal-day.ch-cal-profit{ background:var(--ch-safe-bg); border-color:var(--ch-safe-border); }
+      .ch-cal-day.ch-cal-profit .ch-cal-date{ color:var(--ch-safe); }
+      .ch-cal-day.ch-cal-loss{ background:var(--ch-danger-bg); border-color:var(--ch-danger-border); }
+      .ch-cal-day.ch-cal-loss .ch-cal-date{ color:var(--ch-danger); }
+      .ch-cal-day.ch-cal-warning{ background:var(--ch-warn-bg); border-color:var(--ch-warn-border); }
+      .ch-cal-day.ch-cal-today{ box-shadow:0 0 0 2px var(--eva-accent-1) inset; }
+      .ch-cal-pl{ font-weight:700; font-size:0.72rem; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+      @media (max-width:420px){ .ch-cal-pl{ font-size:0.6rem; } .ch-cal-day{ font-size:0.62rem; } }
+      .ch-cal-badge{ position:absolute; top:3px; right:3px; font-size:0.85rem; line-height:1; }
+      .ch-cal-legend{ display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-size:0.74rem; color:var(--eva-text-dim); }
+      .ch-cal-legend span{ display:inline-flex; align-items:center; gap:6px; }
+      .ch-cal-legend i{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+
+      /* ---------------------------------------------------------
+         11. STATISTICS GRID
+         --------------------------------------------------------- */
+      .ch-stats-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+      @media (max-width:1100px){ .ch-stats-grid{ grid-template-columns:repeat(3,1fr);} }
+      @media (max-width:640px){ .ch-stats-grid{ grid-template-columns:repeat(2,1fr);} }
+      .ch-stat-item{ padding:14px; border-radius:var(--ch-radius-md); background:var(--eva-surface-2); border:1px solid var(--eva-border); }
+      .ch-stat-item .ch-num{ font-size:1.15rem; display:block; margin-bottom:3px; }
+
+      /* ---------------------------------------------------------
+         12. PAYOUT / GROWTH / TRADING DAYS
+         --------------------------------------------------------- */
+      .ch-payout-hero{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+      .ch-payout-hero .ch-num{ font-size:2rem; }
+      .ch-payout-split{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+      .ch-payout-split-row{ display:flex; justify-content:space-between; font-size:0.84rem; }
+      .ch-payout-split-row b{ font-weight:700; }
+
+      .ch-trading-days-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+      .ch-td-dot{ width:26px; height:26px; border-radius:8px; background:var(--eva-surface-2); border:1px solid var(--eva-border); display:flex; align-items:center; justify-content:center; font-size:0.68rem; font-weight:700; color:var(--eva-text-dim); }
+      .ch-td-dot.ch-td-done{ background:var(--ch-safe-bg); border-color:var(--ch-safe-border); color:var(--ch-safe); }
+
+      /* ---------------------------------------------------------
+         13. RULES CONFIGURATION
+         --------------------------------------------------------- */
+      .ch-rules-config-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+      @media (max-width:700px){ .ch-rules-config-grid{ grid-template-columns:1fr;} }
+      .ch-config-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-radius:var(--ch-radius-sm); background:var(--eva-surface-2); border:1px solid var(--eva-border); gap:10px; }
+      .ch-config-name{ font-size:0.83rem; font-weight:600; }
+      .ch-config-name span{ display:block; font-size:0.72rem; font-weight:400; color:var(--eva-text-dim); margin-top:2px; }
+      .ch-switch{ position:relative; width:40px; height:22px; border-radius:999px; background:var(--eva-border); flex-shrink:0; }
+      .ch-switch::after{ content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform .2s var(--eva-ease); }
+      .ch-switch.ch-on{ background:var(--eva-gradient); }
+      .ch-switch.ch-on::after{ transform:translateX(18px); }
+
+      /* ---------------------------------------------------------
+         14. HEALTH SCORE + RISK DISCIPLINE
+         --------------------------------------------------------- */
+      .ch-health-wrap{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+      .ch-health-ring{ position:relative; width:110px; height:110px; flex-shrink:0; }
+      .ch-health-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+      .ch-health-ring-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+      .ch-health-ring-center .ch-num{ font-size:1.5rem; }
+      .ch-health-factors{ flex:1; min-width:200px; display:flex; flex-direction:column; gap:10px; }
+      .ch-health-factor{ display:flex; align-items:center; gap:10px; font-size:0.8rem; }
+      .ch-health-factor span:first-child{ width:120px; color:var(--eva-text-dim); flex-shrink:0; }
+      .ch-health-factor .ch-bar-track{ flex:1; height:6px; }
+      .ch-health-factor b{ width:34px; text-align:right; font-weight:700; }
+
+      /* ---------------------------------------------------------
+         15. STOP-TRADING STATE
+         --------------------------------------------------------- */
+      .ch-stop-banner{
+        display:none; align-items:center; gap:14px; padding:18px; border-radius:var(--ch-radius-lg);
+        background:var(--ch-danger-bg); border:1px solid var(--ch-danger-border); margin-bottom:20px;
+      }
+      .ch-stop-banner.ch-visible{ display:flex; }
+      .ch-stop-icon{ width:46px; height:46px; border-radius:13px; background:var(--ch-danger); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+      .ch-stop-icon svg{ width:24px; height:24px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; }
+      .ch-stop-title{ font-family:var(--eva-font-display); font-weight:700; font-size:1rem; color:var(--ch-danger); }
+      .ch-stop-desc{ font-size:0.82rem; color:var(--eva-text-dim); margin-top:2px; }
+
+      /* ---------------------------------------------------------
+         16. TIMELINE
+         --------------------------------------------------------- */
+      .ch-timeline{ display:flex; flex-direction:column; gap:0; }
+      .ch-timeline-item{ display:flex; gap:14px; }
+      .ch-timeline-rail{ display:flex; flex-direction:column; align-items:center; }
+      .ch-timeline-dot{ width:14px; height:14px; border-radius:50%; background:var(--eva-surface-2); border:2px solid var(--eva-border); flex-shrink:0; margin-top:3px; }
+      .ch-timeline-item.ch-tl-done .ch-timeline-dot{ background:var(--ch-safe); border-color:var(--ch-safe); }
+      .ch-timeline-item.ch-tl-active .ch-timeline-dot{ background:var(--eva-accent-1); border-color:var(--eva-accent-1); box-shadow:0 0 0 4px var(--ch-info-bg); }
+      .ch-timeline-line{ width:2px; flex:1; background:var(--eva-border); min-height:26px; }
+      .ch-timeline-item.ch-tl-done .ch-timeline-line{ background:var(--ch-safe); }
+      .ch-timeline-body{ padding-bottom:20px; flex:1; }
+      .ch-timeline-title{ font-weight:700; font-size:0.86rem; }
+      .ch-timeline-date{ font-size:0.74rem; color:var(--eva-text-dim); margin-top:2px; }
+
+      /* ---------------------------------------------------------
+         17. ALERT CENTER
+         --------------------------------------------------------- */
+      .ch-alert-list{ display:flex; flex-direction:column; gap:8px; }
+      .ch-alert{ display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:var(--ch-radius-sm); border:1px solid var(--eva-border); background:var(--eva-surface-2); }
+      .ch-alert-icon{ width:26px; height:26px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+      .ch-alert-icon svg{ width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2.2; }
+      .ch-alert.ch-alert-info .ch-alert-icon{ background:var(--ch-info-bg); color:var(--ch-info); }
+      .ch-alert.ch-alert-warning .ch-alert-icon{ background:var(--ch-warn-bg); color:var(--ch-warn); }
+      .ch-alert.ch-alert-danger .ch-alert-icon{ background:var(--ch-danger-bg); color:var(--ch-danger); }
+      .ch-alert.ch-alert-success .ch-alert-icon{ background:var(--ch-safe-bg); color:var(--ch-safe); }
+      .ch-alert-title{ font-size:0.82rem; font-weight:700; }
+      .ch-alert-desc{ font-size:0.76rem; color:var(--eva-text-dim); margin-top:1px; }
+      .ch-alert-time{ font-size:0.7rem; color:var(--eva-text-dim); margin-left:auto; flex-shrink:0; white-space:nowrap; }
+
+      /* ---------------------------------------------------------
+         18. ADD TRADE ACTION + MODAL
+         --------------------------------------------------------- */
+      .ch-add-trade-card{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+      .ch-btn-lg{ padding:12px 22px; font-size:0.88rem; border-radius:var(--ch-radius-md); }
+
+      .ch-modal-overlay{
+        position:fixed; inset:0; z-index:1300; display:none; align-items:center; justify-content:center;
+        padding:20px; background:rgba(5,7,12,0.55); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+        opacity:0; transition:opacity .22s ease;
+      }
+      .ch-modal-overlay.ch-modal-open{ display:flex; opacity:1; }
+      .ch-modal{
+        width:100%; max-width:600px; max-height:88vh; overflow-y:auto;
+        background:var(--eva-surface); border:1px solid var(--eva-border); border-radius:var(--ch-radius-lg);
+        box-shadow:0 28px 90px rgba(0,0,0,0.35);
+        transform:translateY(14px) scale(.98); transition:transform .22s ease;
+      }
+      .ch-modal-overlay.ch-modal-open .ch-modal{ transform:translateY(0) scale(1); }
+      .ch-modal-head{
+        display:flex; align-items:center; justify-content:space-between; gap:12px;
+        padding:18px 20px; border-bottom:1px solid var(--eva-border); position:sticky; top:0;
+        background:var(--eva-surface); z-index:1;
+      }
+      .ch-modal-title{ font-family:var(--eva-font-display); font-size:1.05rem; font-weight:700; }
+      .ch-modal-close{
+        width:34px; height:34px; border-radius:50%; flex-shrink:0;
+        display:flex; align-items:center; justify-content:center;
+        background:var(--eva-surface-2); border:1px solid var(--eva-border); color:var(--eva-text);
+      }
+      .ch-modal-close:hover{ background:var(--ch-danger-bg); color:var(--ch-danger); border-color:var(--ch-danger-border); }
+      .ch-modal-close svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+      .ch-modal-body{ padding:20px; display:flex; flex-direction:column; gap:16px; }
+      .ch-form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+      @media (max-width:560px){ .ch-form-grid{ grid-template-columns:1fr; } }
+      .ch-form-group{ display:flex; flex-direction:column; gap:6px; }
+      .ch-form-group-full{ grid-column:1 / -1; }
+      .ch-form-group label{ display:flex; align-items:center; gap:6px; }
+      .ch-optional{ text-transform:none; font-weight:500; color:var(--eva-text-dim); letter-spacing:0; font-size:0.7rem; }
+      .ch-form-input,.ch-form-select,.ch-form-textarea{
+        width:100%; padding:9px 12px; border-radius:var(--ch-radius-sm);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        color:var(--eva-text); font-size:0.86rem; font-family:inherit;
+      }
+      .ch-form-textarea{ resize:vertical; min-height:70px; }
+      .ch-form-input::placeholder,.ch-form-textarea::placeholder{ color:var(--eva-text-dim); }
+
+      .ch-toggle-group{ display:flex; gap:8px; }
+      .ch-toggle-option{ flex:1; position:relative; cursor:pointer; }
+      .ch-toggle-option input{ position:absolute; opacity:0; width:1px; height:1px; }
+      .ch-toggle-option span{
+        display:flex; align-items:center; justify-content:center;
+        padding:9px; border-radius:var(--ch-radius-sm);
+        background:var(--eva-surface-2); border:1px solid var(--eva-border);
+        font-size:0.82rem; font-weight:700; color:var(--eva-text-dim);
+        transition:background-color .15s var(--eva-ease), color .15s var(--eva-ease), border-color .15s var(--eva-ease);
+      }
+      .ch-toggle-option input:focus-visible + span{ outline:2px solid var(--eva-accent-2); outline-offset:2px; }
+      .ch-toggle-option[data-value="long"] input:checked + span,
+      .ch-toggle-option[data-value="win"] input:checked + span{ background:var(--ch-safe); color:#fff; border-color:transparent; }
+      .ch-toggle-option[data-value="short"] input:checked + span,
+      .ch-toggle-option[data-value="loss"] input:checked + span{ background:var(--ch-danger); color:#fff; border-color:transparent; }
+      .ch-toggle-option[data-value="breakeven"] input:checked + span{ background:var(--ch-warn); color:#fff; border-color:transparent; }
+
+      .ch-modal-foot{
+        display:flex; justify-content:flex-end; gap:10px;
+        padding:16px 20px; border-top:1px solid var(--eva-border);
+        position:sticky; bottom:0; background:var(--eva-surface);
+      }
+      @media (max-width:480px){ .ch-modal-foot{ flex-direction:column-reverse; } .ch-modal-foot .ch-btn{ width:100%; justify-content:center; } }
+
+      .ch-wrap{min-width:0;overflow-x:hidden;}
+      .ch-card,.ch-grid,.ch-section,.ch-chart-canvas{min-width:0;max-width:100%;}
+      .ch-cal-grid,.ch-cal-grid > *{min-width:0;max-width:100%;}
+      .ch-modal-overlay{padding:12px 12px calc(82px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;}
+      .ch-modal{max-height:calc(100dvh - 96px);min-height:0;overflow-y:auto;overscroll-behavior:contain;}
+      .ch-modal-foot{position:sticky;bottom:0;background:var(--eva-surface);border-top:1px solid var(--eva-border);z-index:2;}
+      @media(max-width:560px){.ch-modal-overlay{align-items:flex-start}.ch-modal{max-height:calc(100dvh - 92px)}.ch-modal-foot{padding:12px;flex-wrap:wrap}.ch-modal-foot .ch-btn{flex:1;min-width:120px;justify-content:center}}
+    </style>
+
+    <div class="ch-wrap" id="challenge-command-center" data-account-id="acc-001">
+
+      <!-- =====================================================
+           HEADER + ACCOUNT SELECTOR
+           ===================================================== -->
+      <div class="ch-header">
+        <div>
+          <h1>Funded Challenge</h1>
+          <p>Know your account. Know your risk. Know your rules. Know your progress.</p>
+        </div>
+
+        <div class="ch-account-dropdown" id="account-selector">
+          <button class="ch-account-trigger" id="ch-account-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span class="ch-account-trigger-icon">
+              <svg viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 14h.01"/><path d="M4 7V5a2 2 0 0 1 2-2h12"/></svg>
+            </span>
+            <span class="ch-account-trigger-info">
+              <span class="ch-account-trigger-name">Loading…</span>
+              <span class="ch-account-trigger-meta">&nbsp;</span>
+            </span>
+            <svg class="ch-account-trigger-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+
+          <div class="ch-account-panel" id="ch-account-panel" role="listbox">
+            <div class="ch-account-panel-header">Your Accounts</div>
+            <div class="ch-account-list" id="account-list">
+              <!-- Populated at runtime from Firestore by challenge.js. No demo accounts. -->
+            </div>
+            <div class="ch-account-panel-footer">
+              <button type="button" class="ch-btn ch-btn-primary" id="create-account-btn" style="width:100%;justify-content:center;">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create Account
+              </button>
+              <div class="ch-account-panel-actions">
+                <button type="button" class="ch-btn" id="edit-account-btn">
+                  <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  Edit Account
+                </button>
+                <button type="button" class="ch-btn ch-btn-danger" id="delete-account-btn">
+                  <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           STOP-TRADING STATE (hidden by default — demo of the
+           state JS can toggle with .ch-visible)
+           ===================================================== -->
+      <div class="ch-stop-banner" id="stop-trading-banner">
+        <span class="ch-stop-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="8" y1="8" x2="16" y2="16"/></svg>
+        </span>
+        <div>
+          <div class="ch-stop-title">Stop Trading — Daily Drawdown Reached</div>
+          <div class="ch-stop-desc">You've hit today's drawdown limit. Trading is paused until the next session reset.</div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           LEVEL 1 — CHALLENGE STATUS
+           ===================================================== -->
+      <div class="ch-section">
+        <div class="ch-status-banner ch-status-safe ch-glow-safe" id="challenge-status" data-state="on-track">
+          <span class="ch-status-icon">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </span>
+          <div class="ch-status-body">
+            <div class="ch-status-title" id="challenge-status-title">On Track</div>
+            <div class="ch-status-desc" id="challenge-status-desc">Phase 1 · 12 trading days remaining · all rules within limits</div>
+          </div>
+          <div class="ch-status-meta">
+            <div class="ch-status-meta-item">
+              <span class="ch-num" id="phase-status">Phase 1</span>
+              <span class="ch-label">Current Phase</span>
+            </div>
+            <div class="ch-status-meta-item">
+              <span class="ch-num" id="phase-progress-pct">—</span>
+              <span class="ch-label">Phase Progress</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           LEVEL 1 — ACCOUNT OVERVIEW
+           ===================================================== -->
+      <div class="ch-section" id="account-overview">
+        <div class="ch-grid ch-grid-4">
+          <div class="ch-card ch-metric-card">
+            <div class="ch-metric-top"><span class="ch-label">Current Balance</span>
+              <span class="ch-metric-icon"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+            </div>
+            <div class="ch-metric-value ch-num" id="current-balance">—</div>
+            <div class="ch-metric-foot">Starting: <span id="starting-balance">—</span></div>
+          </div>
+
+          <div class="ch-card ch-metric-card">
+            <div class="ch-metric-top"><span class="ch-label">Profit / Loss</span>
+              <span class="ch-metric-icon"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+            </div>
+            <div class="ch-metric-value ch-num ch-pos" id="current-profit">—</div>
+            <div class="ch-metric-foot ch-pos" id="today-pl">—</div>
+          </div>
+
+          <div class="ch-card ch-metric-card">
+            <div class="ch-metric-top"><span class="ch-label">Target Progress</span>
+              <span class="ch-metric-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+            </div>
+            <div class="ch-metric-value ch-num" id="profit-progress">—</div>
+            <div class="ch-bar-track"><div class="ch-bar-fill ch-fill-safe" style="width:42%" id="profit-progress-bar"></div></div>
+            <div class="ch-metric-foot">Target: <span id="profit-target">$5,500.00 (10%)</span></div>
+          </div>
+
+          <div class="ch-card ch-metric-card">
+            <div class="ch-metric-top"><span class="ch-label">Today's Risk</span>
+              <span class="ch-metric-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+            </div>
+            <div class="ch-metric-value ch-num" id="today-risk">—</div>
+            <div class="ch-bar-track"><div class="ch-bar-fill ch-fill-warn" style="width:75%"></div></div>
+            <div class="ch-metric-foot">of 1.00% daily risk budget</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           PHASE PROGRESSION
+           ===================================================== -->
+      <div class="ch-section" id="phase-progression">
+        <div class="ch-section-head">
+          <div class="ch-section-title">
+            <svg viewBox="0 0 24 24"><path d="M8 4h8l1 4-5 3-5-3 1-4z"/><path d="M12 11v9M8 20h8"/><path d="M6 8c0 4 2.5 6 6 6s6-2 6-6"/></svg>
+            Phase Progression
+          </div>
+          <div class="ch-account-dropdown" id="phase-selector">
+            <button class="ch-btn" type="button"><span>Phase 1</span>
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="ch-card">
+          <div class="ch-phase-track" id="phase-track">
+            <div class="ch-phase-node ch-phase-active" data-phase="1"><div class="ch-phase-node-head"><span class="ch-phase-node-name">Phase 1</span><span class="ch-phase-node-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg></span></div><div class="ch-bar-track"><div class="ch-bar-fill" style="width:0%"></div></div><div class="ch-phase-node-stat"><span>Progress</span><b>0%</b></div><div class="ch-phase-node-stat"><span>Target</span><b>—</b></div><div class="ch-phase-node-stat"><span>Remaining</span><b>—</b></div><div class="ch-phase-node-stat"><span>Trading Days</span><b>0 / — min</b></div></div>
+            <div class="ch-phase-connector"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            <div class="ch-phase-node ch-phase-locked" data-phase="2"><div class="ch-phase-node-head"><span class="ch-phase-node-name">Phase 2</span><span class="ch-phase-node-icon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></div><div class="ch-bar-track"><div class="ch-bar-fill" style="width:0%"></div></div><div class="ch-phase-node-stat"><span>Progress</span><b>0%</b></div><div class="ch-phase-node-stat"><span>Target</span><b>—</b></div><div class="ch-phase-node-stat"><span>Remaining</span><b>—</b></div><div class="ch-phase-node-stat"><span>Trading Days</span><b>0 / — min</b></div></div>
+            <div class="ch-phase-connector"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            <div class="ch-phase-node ch-phase-locked" data-phase="3"><div class="ch-phase-node-head"><span class="ch-phase-node-name">Phase 3</span><span class="ch-phase-node-icon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></div><div class="ch-bar-track"><div class="ch-bar-fill" style="width:0%"></div></div><div class="ch-phase-node-stat"><span>Progress</span><b>0%</b></div><div class="ch-phase-node-stat"><span>Target</span><b>—</b></div><div class="ch-phase-node-stat"><span>Remaining</span><b>—</b></div><div class="ch-phase-node-stat"><span>Trading Days</span><b>0 / — min</b></div></div>
+            <div class="ch-phase-connector"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            <div class="ch-phase-node ch-phase-locked" data-phase="4"><div class="ch-phase-node-head"><span class="ch-phase-node-name">Funded</span><span class="ch-phase-node-icon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></div><div class="ch-phase-node-stat"><span>Status</span><b>Locked</b></div><div class="ch-phase-node-stat"><span>Payout Split</span><b>—</b></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ADD TRADE ACTION + MODAL
+           ===================================================== -->
+      <div class="ch-section" id="add-trade-action">
+        <div class="ch-card ch-add-trade-card">
+          <div>
+            <div class="ch-section-title" style="margin-bottom:2px;">Log New Trade</div>
+            <div class="ch-section-sub">Record a trade against this challenge account.</div>
+          </div>
+          <button type="button" class="ch-btn ch-btn-primary ch-btn-lg" id="add-trade-btn" aria-haspopup="dialog" aria-controls="addTradeModal">+ Add Trade</button>
+        </div>
+      </div>
+
+      <div class="ch-modal-overlay" id="addTradeModalOverlay" data-modal="addTradeModal" aria-hidden="true">
+        <div class="ch-modal" id="addTradeModal" role="dialog" aria-modal="true" aria-labelledby="addTradeModalTitle">
+          <div class="ch-modal-head">
+            <h2 class="ch-modal-title" id="addTradeModalTitle">Add Trade</h2>
+            <button type="button" class="ch-modal-close" data-modal-close="addTradeModal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <form id="addTradeForm" novalidate>
+            <div class="ch-modal-body">
+              <div class="ch-form-grid">
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="trade-number">Trade Number</label>
+                  <input class="ch-form-input" type="number" id="trade-number" name="tradeNumber" min="1" placeholder="e.g. 12">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="trade-date">Date</label>
+                  <input class="ch-form-input" type="date" id="trade-date" name="date">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="entry-time">Entry Time</label>
+                  <input class="ch-form-input" type="time" id="entry-time" name="entryTime">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="instrument">Instrument</label>
+                  <input class="ch-form-input" type="text" id="instrument" name="instrument" placeholder="e.g. EURUSD">
+                </div>
+
+                <div class="ch-form-group ch-form-group-full">
+                  <label class="ch-label" id="direction-label">Direction</label>
+                  <div class="ch-toggle-group" role="radiogroup" aria-labelledby="direction-label">
+                    <label class="ch-toggle-option" data-value="long">
+                      <input type="radio" name="direction" id="direction-long" value="long">
+                      <span>Long</span>
+                    </label>
+                    <label class="ch-toggle-option" data-value="short">
+                      <input type="radio" name="direction" id="direction-short" value="short">
+                      <span>Short</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="entry-price">Entry Price</label>
+                  <input class="ch-form-input" type="number" step="any" id="entry-price" name="entryPrice" placeholder="1.10000">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="stop-loss">Stop-Loss</label>
+                  <input class="ch-form-input" type="number" step="any" id="stop-loss" name="stopLoss" placeholder="1.09500">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="take-profit">Take-Profit</label>
+                  <input class="ch-form-input" type="number" step="any" id="take-profit" name="takeProfit" placeholder="1.11000">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="risk-amount">Risk Amount ($)</label>
+                  <input class="ch-form-input" type="number" step="any" id="risk-amount" name="riskAmount" placeholder="25.00">
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="risk-percentage">Risk Percentage (%)</label>
+                  <input class="ch-form-input" type="number" step="any" id="risk-percentage" name="riskPercentage" placeholder="0.50">
+                </div>
+
+                <div class="ch-form-group ch-form-group-full">
+                  <label class="ch-label" id="result-label">Result</label>
+                  <div class="ch-toggle-group" role="radiogroup" aria-labelledby="result-label">
+                    <label class="ch-toggle-option" data-value="win">
+                      <input type="radio" name="result" id="result-win" value="win">
+                      <span>Win</span>
+                    </label>
+                    <label class="ch-toggle-option" data-value="loss">
+                      <input type="radio" name="result" id="result-loss" value="loss">
+                      <span>Loss</span>
+                    </label>
+                    <label class="ch-toggle-option" data-value="breakeven">
+                      <input type="radio" name="result" id="result-breakeven" value="breakeven">
+                      <span>Break-Even</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="ch-form-group">
+                  <label class="ch-label" for="pl-amount">P/L ($)</label>
+                  <input class="ch-form-input" type="number" step="any" id="pl-amount" name="plAmount" placeholder="e.g. 42.00 or -18.00">
+                </div>
+
+                <div class="ch-form-group ch-form-group-full">
+                  <label class="ch-label" for="trade-notes">Notes <span class="ch-optional">(optional)</span></label>
+                  <textarea class="ch-form-textarea" id="trade-notes" name="notes" rows="3" placeholder="Setup, reasoning, lessons learned..."></textarea>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="ch-modal-foot">
+              <button type="button" class="ch-btn" data-modal-close="addTradeModal">Cancel</button>
+              <button type="submit" class="ch-btn ch-btn-primary" id="addTradeSubmitBtn">Add Trade</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           CREATE ACCOUNT MODAL
+           ===================================================== -->
+      <div class="ch-modal-overlay" id="createAccountModalOverlay" data-modal="createAccountModal" aria-hidden="true">
+        <div class="ch-modal" id="createAccountModal" role="dialog" aria-modal="true" aria-labelledby="createAccountModalTitle" style="max-width:640px;">
+          <div class="ch-modal-head">
+            <h2 class="ch-modal-title" id="createAccountModalTitle">Create Account</h2>
+            <button type="button" class="ch-modal-close" data-modal-close="createAccountModal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <form id="createAccountForm" novalidate>
+            <div class="ch-modal-body">
+
+              <div class="ch-section-title" style="font-size:0.8rem;">Account Information</div>
+              <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-name">Account Name</label>
+                  <input class="ch-form-input" type="text" id="ca-name" name="accountName" placeholder="e.g. Account 004" required>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-firm">Firm Name</label>
+                  <input class="ch-form-input" type="text" id="ca-firm" name="firmName" placeholder="e.g. FTMO, Apex, MyFundedFX">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-type">Account Type</label>
+                  <select class="ch-form-select" id="ca-type" name="accountType">
+                    <option value="Instant">Instant</option>
+                    <option value="Phase 1">Phase 1</option>
+                    <option value="Phase 2">Phase 2</option>
+                    <option value="Phase 3">Phase 3</option>
+                    <option value="Real Account">Real Account</option>
+                    <option value="Funded">Funded</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-status">Account Status</label>
+                  <select class="ch-form-select" id="ca-status" name="status">
+                    <option value="active">Active</option>
+                    <option value="passed">Passed</option>
+                    <option value="funded">Funded</option>
+                    <option value="failed">Failed</option>
+                    <option value="breached">Breached</option>
+                  </select>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-size">Account Size ($)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-size" name="accountSize" placeholder="50000" required>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-start-balance">Starting Balance ($) <span class="ch-optional">(defaults to size)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-start-balance" name="startingBalance" placeholder="50000">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-phase">Current Phase</label>
+                  <select class="ch-form-select" id="ca-phase" name="currentPhase">
+                    <option value="1">Phase 1</option>
+                    <option value="2">Phase 2</option>
+                    <option value="3">Phase 3</option>
+                    <option value="4">Funded</option>
+                  </select>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-start-date">Start Date</label>
+                  <input class="ch-form-input" type="date" id="ca-start-date" name="startDate">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-deadline">Deadline <span class="ch-optional">(optional)</span></label>
+                  <input class="ch-form-input" type="date" id="ca-deadline" name="deadline">
+                </div>
+              </div>
+
+              <div class="ch-section-title" style="font-size:0.8rem;">Phases Enabled</div>
+              <div class="ch-toggle-group" role="group" aria-label="Phases enabled">
+                <label class="ch-toggle-option" data-value="phase1"><input type="checkbox" name="phase1Enabled" checked><span>Phase 1</span></label>
+                <label class="ch-toggle-option" data-value="phase2"><input type="checkbox" name="phase2Enabled"><span>Phase 2</span></label>
+                <label class="ch-toggle-option" data-value="phase3"><input type="checkbox" name="phase3Enabled"><span>Phase 3</span></label>
+              </div>
+
+              <div class="ch-section-title" style="font-size:0.8rem;">Phase Rules <span class="ch-optional" style="text-transform:none;">(each phase is configured independently &mdash; leave a field blank for any rule your firm does not enforce)</span></div>
+              <div class="ch-phase-rules-switch" id="ca-phase-rules-switch" role="group" aria-label="Edit rules for phase">
+                <button type="button" class="ch-active" data-phase-panel="1">Phase 1</button>
+                <button type="button" data-phase-panel="2">Phase 2</button>
+                <button type="button" data-phase-panel="3">Phase 3</button>
+              </div>
+              <div class="ch-phase-rules-panel" data-phase-rules-panel="1">
+                <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-profit-target-pct">Profit Target (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-profit-target-pct" name="p1_profitTargetPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-daily-drawdown-pct">Daily Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-daily-drawdown-pct" name="p1_dailyDrawdownPct" placeholder="e.g. 5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-overall-drawdown-pct">Overall Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-overall-drawdown-pct" name="p1_overallDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-trailing-drawdown-pct">Trailing Drawdown (%) <span class="ch-optional">(if used instead)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-trailing-drawdown-pct" name="p1_trailingDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-consistency-pct">Consistency Rule (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-consistency-pct" name="p1_consistencyPct" placeholder="e.g. 30">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-minimum-trading-days">Minimum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p1-minimum-trading-days" name="p1_minimumTradingDays" placeholder="e.g. 4">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-maximum-trading-days">Maximum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p1-maximum-trading-days" name="p1_maximumTradingDays" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-max-trades-per-day">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p1-max-trades-per-day" name="p1_maxTradesPerDay" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-max-losses-per-day">Stop After Losses (per day)</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p1-max-losses-per-day" name="p1_maxLossesPerDay" placeholder="e.g. 2">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-risk-per-trade-pct">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-risk-per-trade-pct" name="p1_riskPerTradePct" placeholder="e.g. 0.5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-risk-per-day-pct">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p1-risk-per-day-pct" name="p1_riskPerDayPct" placeholder="e.g. 1">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p1-payout-split">Payout Split</label>
+                  <input class="ch-form-input" type="text" id="ca-p1-payout-split" name="p1_payoutSplit" placeholder="e.g. 80/20">
+                </div>
+                  <div class="ch-form-group ch-form-group-full">
+                    <label class="ch-label" for="ca-p1-custom-rule">Custom Rule <span class="ch-optional">(optional, free text)</span></label>
+                    <textarea class="ch-form-textarea" id="ca-p1-custom-rule" name="p1_customRuleNote" rows="2" placeholder="Any additional rule your firm enforces"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="ch-phase-rules-panel" data-phase-rules-panel="2" style="display:none;">
+                <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-profit-target-pct">Profit Target (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-profit-target-pct" name="p2_profitTargetPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-daily-drawdown-pct">Daily Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-daily-drawdown-pct" name="p2_dailyDrawdownPct" placeholder="e.g. 5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-overall-drawdown-pct">Overall Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-overall-drawdown-pct" name="p2_overallDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-trailing-drawdown-pct">Trailing Drawdown (%) <span class="ch-optional">(if used instead)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-trailing-drawdown-pct" name="p2_trailingDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-consistency-pct">Consistency Rule (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-consistency-pct" name="p2_consistencyPct" placeholder="e.g. 30">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-minimum-trading-days">Minimum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p2-minimum-trading-days" name="p2_minimumTradingDays" placeholder="e.g. 4">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-maximum-trading-days">Maximum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p2-maximum-trading-days" name="p2_maximumTradingDays" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-max-trades-per-day">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p2-max-trades-per-day" name="p2_maxTradesPerDay" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-max-losses-per-day">Stop After Losses (per day)</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p2-max-losses-per-day" name="p2_maxLossesPerDay" placeholder="e.g. 2">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-risk-per-trade-pct">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-risk-per-trade-pct" name="p2_riskPerTradePct" placeholder="e.g. 0.5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-risk-per-day-pct">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p2-risk-per-day-pct" name="p2_riskPerDayPct" placeholder="e.g. 1">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p2-payout-split">Payout Split</label>
+                  <input class="ch-form-input" type="text" id="ca-p2-payout-split" name="p2_payoutSplit" placeholder="e.g. 80/20">
+                </div>
+                  <div class="ch-form-group ch-form-group-full">
+                    <label class="ch-label" for="ca-p2-custom-rule">Custom Rule <span class="ch-optional">(optional, free text)</span></label>
+                    <textarea class="ch-form-textarea" id="ca-p2-custom-rule" name="p2_customRuleNote" rows="2" placeholder="Any additional rule your firm enforces"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="ch-phase-rules-panel" data-phase-rules-panel="3" style="display:none;">
+                <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-profit-target-pct">Profit Target (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-profit-target-pct" name="p3_profitTargetPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-daily-drawdown-pct">Daily Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-daily-drawdown-pct" name="p3_dailyDrawdownPct" placeholder="e.g. 5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-overall-drawdown-pct">Overall Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-overall-drawdown-pct" name="p3_overallDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-trailing-drawdown-pct">Trailing Drawdown (%) <span class="ch-optional">(if used instead)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-trailing-drawdown-pct" name="p3_trailingDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-consistency-pct">Consistency Rule (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-consistency-pct" name="p3_consistencyPct" placeholder="e.g. 30">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-minimum-trading-days">Minimum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p3-minimum-trading-days" name="p3_minimumTradingDays" placeholder="e.g. 4">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-maximum-trading-days">Maximum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p3-maximum-trading-days" name="p3_maximumTradingDays" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-max-trades-per-day">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p3-max-trades-per-day" name="p3_maxTradesPerDay" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-max-losses-per-day">Stop After Losses (per day)</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ca-p3-max-losses-per-day" name="p3_maxLossesPerDay" placeholder="e.g. 2">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-risk-per-trade-pct">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-risk-per-trade-pct" name="p3_riskPerTradePct" placeholder="e.g. 0.5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-risk-per-day-pct">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ca-p3-risk-per-day-pct" name="p3_riskPerDayPct" placeholder="e.g. 1">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ca-p3-payout-split">Payout Split</label>
+                  <input class="ch-form-input" type="text" id="ca-p3-payout-split" name="p3_payoutSplit" placeholder="e.g. 80/20">
+                </div>
+                  <div class="ch-form-group ch-form-group-full">
+                    <label class="ch-label" for="ca-p3-custom-rule">Custom Rule <span class="ch-optional">(optional, free text)</span></label>
+                    <textarea class="ch-form-textarea" id="ca-p3-custom-rule" name="p3_customRuleNote" rows="2" placeholder="Any additional rule your firm enforces"></textarea>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div class="ch-modal-foot">
+              <button type="button" class="ch-btn" data-modal-close="createAccountModal">Cancel</button>
+              <button type="submit" class="ch-btn ch-btn-primary" id="createAccountSubmitBtn">Create Account</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           EDIT ACCOUNT MODAL
+           ===================================================== -->
+      <div class="ch-modal-overlay" id="editAccountModalOverlay" data-modal="editAccountModal" aria-hidden="true">
+        <div class="ch-modal" id="editAccountModal" role="dialog" aria-modal="true" aria-labelledby="editAccountModalTitle" style="max-width:640px;">
+          <div class="ch-modal-head">
+            <h2 class="ch-modal-title" id="editAccountModalTitle">Edit Account</h2>
+            <button type="button" class="ch-modal-close" data-modal-close="editAccountModal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <form id="editAccountForm" novalidate>
+            <div class="ch-modal-body">
+
+              <div class="ch-section-title" style="font-size:0.8rem;">Account Information</div>
+              <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-name">Account Name</label>
+                  <input class="ch-form-input" type="text" id="ea-name" name="accountName" required>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-firm">Firm Name</label>
+                  <input class="ch-form-input" type="text" id="ea-firm" name="firmName">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-type">Account Type</label>
+                  <select class="ch-form-select" id="ea-type" name="accountType">
+                    <option value="Instant">Instant</option>
+                    <option value="Phase 1">Phase 1</option>
+                    <option value="Phase 2">Phase 2</option>
+                    <option value="Phase 3">Phase 3</option>
+                    <option value="Real Account">Real Account</option>
+                    <option value="Funded">Funded</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-status">Account Status</label>
+                  <select class="ch-form-select" id="ea-status" name="status">
+                    <option value="active">Active</option>
+                    <option value="passed">Passed</option>
+                    <option value="funded">Funded</option>
+                    <option value="failed">Failed</option>
+                    <option value="breached">Breached</option>
+                  </select>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-size">Account Size ($)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-size" name="accountSize" required>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-start-balance">Starting Balance ($)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-start-balance" name="startingBalance">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-phase">Current Phase</label>
+                  <select class="ch-form-select" id="ea-phase" name="currentPhase">
+                    <option value="1">Phase 1</option>
+                    <option value="2">Phase 2</option>
+                    <option value="3">Phase 3</option>
+                    <option value="4">Funded</option>
+                  </select>
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-start-date">Start Date</label>
+                  <input class="ch-form-input" type="date" id="ea-start-date" name="startDate">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-deadline">Deadline <span class="ch-optional">(optional)</span></label>
+                  <input class="ch-form-input" type="date" id="ea-deadline" name="deadline">
+                </div>
+              </div>
+
+              <div class="ch-section-title" style="font-size:0.8rem;">Phases Enabled</div>
+              <div class="ch-toggle-group" role="group" aria-label="Phases enabled">
+                <label class="ch-toggle-option" data-value="phase1"><input type="checkbox" name="phase1Enabled"><span>Phase 1</span></label>
+                <label class="ch-toggle-option" data-value="phase2"><input type="checkbox" name="phase2Enabled"><span>Phase 2</span></label>
+                <label class="ch-toggle-option" data-value="phase3"><input type="checkbox" name="phase3Enabled"><span>Phase 3</span></label>
+              </div>
+
+              <div class="ch-section-title" style="font-size:0.8rem;">Phase Rules <span class="ch-optional" style="text-transform:none;">(each phase is configured independently &mdash; leave a field blank for any rule your firm does not enforce)</span></div>
+              <div class="ch-phase-rules-switch" id="ea-phase-rules-switch" role="group" aria-label="Edit rules for phase">
+                <button type="button" class="ch-active" data-phase-panel="1">Phase 1</button>
+                <button type="button" data-phase-panel="2">Phase 2</button>
+                <button type="button" data-phase-panel="3">Phase 3</button>
+              </div>
+              <div class="ch-phase-rules-panel" data-phase-rules-panel="1">
+                <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-profit-target-pct">Profit Target (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-profit-target-pct" name="p1_profitTargetPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-daily-drawdown-pct">Daily Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-daily-drawdown-pct" name="p1_dailyDrawdownPct" placeholder="e.g. 5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-overall-drawdown-pct">Overall Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-overall-drawdown-pct" name="p1_overallDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-trailing-drawdown-pct">Trailing Drawdown (%) <span class="ch-optional">(if used instead)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-trailing-drawdown-pct" name="p1_trailingDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-consistency-pct">Consistency Rule (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-consistency-pct" name="p1_consistencyPct" placeholder="e.g. 30">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-minimum-trading-days">Minimum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p1-minimum-trading-days" name="p1_minimumTradingDays" placeholder="e.g. 4">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-maximum-trading-days">Maximum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p1-maximum-trading-days" name="p1_maximumTradingDays" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-max-trades-per-day">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p1-max-trades-per-day" name="p1_maxTradesPerDay" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-max-losses-per-day">Stop After Losses (per day)</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p1-max-losses-per-day" name="p1_maxLossesPerDay" placeholder="e.g. 2">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-risk-per-trade-pct">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-risk-per-trade-pct" name="p1_riskPerTradePct" placeholder="e.g. 0.5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-risk-per-day-pct">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p1-risk-per-day-pct" name="p1_riskPerDayPct" placeholder="e.g. 1">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p1-payout-split">Payout Split</label>
+                  <input class="ch-form-input" type="text" id="ea-p1-payout-split" name="p1_payoutSplit" placeholder="e.g. 80/20">
+                </div>
+                  <div class="ch-form-group ch-form-group-full">
+                    <label class="ch-label" for="ea-p1-custom-rule">Custom Rule <span class="ch-optional">(optional, free text)</span></label>
+                    <textarea class="ch-form-textarea" id="ea-p1-custom-rule" name="p1_customRuleNote" rows="2" placeholder="Any additional rule your firm enforces"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="ch-phase-rules-panel" data-phase-rules-panel="2" style="display:none;">
+                <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-profit-target-pct">Profit Target (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-profit-target-pct" name="p2_profitTargetPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-daily-drawdown-pct">Daily Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-daily-drawdown-pct" name="p2_dailyDrawdownPct" placeholder="e.g. 5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-overall-drawdown-pct">Overall Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-overall-drawdown-pct" name="p2_overallDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-trailing-drawdown-pct">Trailing Drawdown (%) <span class="ch-optional">(if used instead)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-trailing-drawdown-pct" name="p2_trailingDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-consistency-pct">Consistency Rule (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-consistency-pct" name="p2_consistencyPct" placeholder="e.g. 30">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-minimum-trading-days">Minimum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p2-minimum-trading-days" name="p2_minimumTradingDays" placeholder="e.g. 4">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-maximum-trading-days">Maximum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p2-maximum-trading-days" name="p2_maximumTradingDays" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-max-trades-per-day">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p2-max-trades-per-day" name="p2_maxTradesPerDay" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-max-losses-per-day">Stop After Losses (per day)</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p2-max-losses-per-day" name="p2_maxLossesPerDay" placeholder="e.g. 2">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-risk-per-trade-pct">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-risk-per-trade-pct" name="p2_riskPerTradePct" placeholder="e.g. 0.5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-risk-per-day-pct">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p2-risk-per-day-pct" name="p2_riskPerDayPct" placeholder="e.g. 1">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p2-payout-split">Payout Split</label>
+                  <input class="ch-form-input" type="text" id="ea-p2-payout-split" name="p2_payoutSplit" placeholder="e.g. 80/20">
+                </div>
+                  <div class="ch-form-group ch-form-group-full">
+                    <label class="ch-label" for="ea-p2-custom-rule">Custom Rule <span class="ch-optional">(optional, free text)</span></label>
+                    <textarea class="ch-form-textarea" id="ea-p2-custom-rule" name="p2_customRuleNote" rows="2" placeholder="Any additional rule your firm enforces"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="ch-phase-rules-panel" data-phase-rules-panel="3" style="display:none;">
+                <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-profit-target-pct">Profit Target (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-profit-target-pct" name="p3_profitTargetPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-daily-drawdown-pct">Daily Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-daily-drawdown-pct" name="p3_dailyDrawdownPct" placeholder="e.g. 5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-overall-drawdown-pct">Overall Drawdown (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-overall-drawdown-pct" name="p3_overallDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-trailing-drawdown-pct">Trailing Drawdown (%) <span class="ch-optional">(if used instead)</span></label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-trailing-drawdown-pct" name="p3_trailingDrawdownPct" placeholder="e.g. 10">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-consistency-pct">Consistency Rule (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-consistency-pct" name="p3_consistencyPct" placeholder="e.g. 30">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-minimum-trading-days">Minimum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p3-minimum-trading-days" name="p3_minimumTradingDays" placeholder="e.g. 4">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-maximum-trading-days">Maximum Trading Days</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p3-maximum-trading-days" name="p3_maximumTradingDays" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-max-trades-per-day">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p3-max-trades-per-day" name="p3_maxTradesPerDay" placeholder="optional">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-max-losses-per-day">Stop After Losses (per day)</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="ea-p3-max-losses-per-day" name="p3_maxLossesPerDay" placeholder="e.g. 2">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-risk-per-trade-pct">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-risk-per-trade-pct" name="p3_riskPerTradePct" placeholder="e.g. 0.5">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-risk-per-day-pct">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="ea-p3-risk-per-day-pct" name="p3_riskPerDayPct" placeholder="e.g. 1">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="ea-p3-payout-split">Payout Split</label>
+                  <input class="ch-form-input" type="text" id="ea-p3-payout-split" name="p3_payoutSplit" placeholder="e.g. 80/20">
+                </div>
+                  <div class="ch-form-group ch-form-group-full">
+                    <label class="ch-label" for="ea-p3-custom-rule">Custom Rule <span class="ch-optional">(optional, free text)</span></label>
+                    <textarea class="ch-form-textarea" id="ea-p3-custom-rule" name="p3_customRuleNote" rows="2" placeholder="Any additional rule your firm enforces"></textarea>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div class="ch-modal-foot">
+              <button type="button" class="ch-btn" data-modal-close="editAccountModal">Cancel</button>
+              <button type="submit" class="ch-btn ch-btn-primary" id="editAccountSubmitBtn">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           DELETE ACCOUNT CONFIRMATION MODAL
+           ===================================================== -->
+      <div class="ch-modal-overlay" id="deleteAccountModalOverlay" data-modal="deleteAccountModal" aria-hidden="true">
+        <div class="ch-modal" id="deleteAccountModal" role="dialog" aria-modal="true" aria-labelledby="deleteAccountModalTitle" style="max-width:460px;">
+          <div class="ch-modal-head">
+            <h2 class="ch-modal-title" id="deleteAccountModalTitle">Delete Account</h2>
+            <button type="button" class="ch-modal-close" data-modal-close="deleteAccountModal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="ch-modal-body">
+            <div class="ch-delete-warning">
+              <div>Account: <b id="da-account-name">—</b></div>
+              <div>Account ID: <b id="da-account-id">—</b></div>
+              <div>This permanently deletes this account and all of its trades. This cannot be undone.</div>
+            </div>
+            <label class="ch-label" for="da-confirm-input">Type the account name to confirm</label>
+            <input class="ch-form-input" type="text" id="da-confirm-input" autocomplete="off" placeholder="Type account name exactly">
+          </div>
+          <div class="ch-modal-foot">
+            <button type="button" class="ch-btn" data-modal-close="deleteAccountModal">Cancel</button>
+            <button type="button" class="ch-btn ch-btn-danger" id="deleteAccountConfirmBtn" disabled>Delete Account</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           DAY DETAIL MODAL (replaces window.alert)
+           ===================================================== -->
+      <div class="ch-modal-overlay" id="dayDetailModalOverlay" data-modal="dayDetailModal" aria-hidden="true">
+        <div class="ch-modal" id="dayDetailModal" role="dialog" aria-modal="true" aria-labelledby="dayDetailModalTitle" style="max-width:520px;">
+          <div class="ch-modal-head">
+            <h2 class="ch-modal-title" id="dayDetailModalTitle">Day Detail</h2>
+            <button type="button" class="ch-modal-close" data-modal-close="dayDetailModal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="ch-modal-body" id="dayDetailModalBody">
+            <!-- populated at runtime -->
+          </div>
+          <div class="ch-modal-foot">
+            <button type="button" class="ch-btn" data-modal-close="dayDetailModal">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           RISK / NEXT TRADE SETTINGS MODAL (replaces prompt())
+           ===================================================== -->
+      <div class="ch-modal-overlay" id="riskSettingsModalOverlay" data-modal="riskSettingsModal" aria-hidden="true">
+        <div class="ch-modal" id="riskSettingsModal" role="dialog" aria-modal="true" aria-labelledby="riskSettingsModalTitle" style="max-width:480px;">
+          <div class="ch-modal-head">
+            <h2 class="ch-modal-title" id="riskSettingsModalTitle">Next Trade Settings</h2>
+            <button type="button" class="ch-modal-close" data-modal-close="riskSettingsModal" aria-label="Close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <form id="riskSettingsForm" novalidate>
+            <div class="ch-modal-body">
+              <div class="ch-form-grid">
+                <div class="ch-form-group">
+                  <label class="ch-label" for="rs-risk-trade">Risk Per Trade (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="rs-risk-trade" name="riskPerTradePct">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="rs-risk-day">Max Daily Risk (%)</label>
+                  <input class="ch-form-input" type="number" min="0" step="any" id="rs-risk-day" name="riskPerDayPct">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="rs-max-trades">Max Trades / Day</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="rs-max-trades" name="maxTradesDay">
+                </div>
+                <div class="ch-form-group">
+                  <label class="ch-label" for="rs-max-losses">Stop After Losses</label>
+                  <input class="ch-form-input" type="number" min="0" step="1" id="rs-max-losses" name="maxLossesDay">
+                </div>
+                <div class="ch-form-group ch-form-group-full">
+                  <label class="ch-label" for="rs-warning-threshold">Warning Threshold (% of limit) <span class="ch-optional">(optional)</span></label>
+                  <input class="ch-form-input" type="number" min="0" max="100" step="any" id="rs-warning-threshold" name="warningThresholdPct" placeholder="e.g. 80">
+                </div>
+              </div>
+            </div>
+            <div class="ch-modal-foot">
+              <button type="button" class="ch-btn" data-modal-close="riskSettingsModal">Cancel</button>
+              <button type="submit" class="ch-btn ch-btn-primary" id="riskSettingsSubmitBtn">Save Settings</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           DRAWDOWN + DANGER ZONE
+           ===================================================== -->
+      <div class="ch-section">
+        <div class="ch-grid ch-grid-3">
+
+          <div class="ch-card ch-dd-card" id="account-drawdown">
+            <div class="ch-section-title" style="margin-bottom:2px;">
+              <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+              Daily Drawdown
+            </div>
+            <div class="ch-bar-track"><div class="ch-bar-fill ch-fill-warn" style="width:40%"></div></div>
+            <div class="ch-dd-row"><span class="ch-dd-used"><b id="daily-dd-used">$80.00</b> / $200.00 used</span><span class="ch-num">40%</span></div>
+            <div class="ch-dd-remaining">Remaining <span class="ch-num" id="daily-dd-remaining">$120.00</span></div>
+          </div>
+
+          <div class="ch-card ch-dd-card">
+            <div class="ch-section-title" style="margin-bottom:2px;">
+              <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 12l4-4 3 3 5-6"/></svg>
+              Overall Drawdown
+            </div>
+            <div class="ch-bar-track"><div class="ch-bar-fill ch-fill-safe" style="width:36%"></div></div>
+            <div class="ch-dd-row"><span class="ch-dd-used"><b id="overall-dd-used">$180.00</b> / $500.00 used</span><span class="ch-num">36%</span></div>
+            <div class="ch-dd-remaining">Remaining <span class="ch-num" id="overall-dd-remaining">$320.00</span></div>
+          </div>
+
+          <div class="ch-card ch-danger-panel ch-glow-safe" id="risk-engine" data-danger-level="safe">
+            <div class="ch-label">Danger Level</div>
+            <div class="ch-danger-ring">
+              <svg viewBox="0 0 120 120">
+                <circle class="ch-danger-ring-track" cx="60" cy="60" r="52"></circle>
+                <circle class="ch-danger-ring-fill" id="danger-ring-fill" cx="60" cy="60" r="52"
+                  stroke="var(--ch-safe)" stroke-dasharray="327" stroke-dashoffset="238"></circle>
+              </svg>
+              <div class="ch-danger-ring-center">
+                <span class="ch-num" id="danger-percentage">—</span>
+                <span>of maximum drawdown used</span>
+              </div>
+            </div>
+            <span class="ch-pill ch-pill-safe" id="danger-level-pill"><span class="ch-pill-dot"></span>Safe</span>
+            <div class="ch-danger-breach-grid">
+              <div class="ch-danger-breach-item"><div class="ch-label">To Daily Breach</div><div class="ch-num">$120.00</div></div>
+              <div class="ch-danger-breach-item"><div class="ch-label">To Overall Breach</div><div class="ch-num">$320.00</div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =====================================================
+           RISK MANAGEMENT + NEXT TRADE
+           ===================================================== -->
+      <div class="ch-section">
+        <div class="ch-grid ch-grid-2">
+
+          <div class="ch-card" id="risk-management">
+            <div class="ch-section-title" style="margin-bottom:10px;">
+              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Risk Management
+            </div>
+            <div class="ch-risk-list">
+              <div class="ch-risk-row"><span class="ch-label">Current Balance</span><span class="ch-num">$5,420.00</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Daily DD Remaining</span><span class="ch-num">$120.00</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Overall DD Remaining</span><span class="ch-num">$320.00</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Today's Risk Used</span><span class="ch-num">0.75%</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Risk Per Trade</span><span class="ch-num">0.50%</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Risk Per Day</span><span class="ch-num">1.00%</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Trades Taken Today</span><span class="ch-num" id="trades-taken-today">3 / 5</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Losses Today</span><span class="ch-num" id="losses-today">1 / 2</span></div>
+            </div>
+          </div>
+
+          <div class="ch-card ch-next-trade-card" id="next-trade">
+            <div class="ch-next-trade-head">
+              <div class="ch-section-title" style="margin-bottom:0;">
+                <svg viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+                Next Trade
+              </div>
+              <button class="ch-btn ch-btn-icon" aria-label="Configure risk settings">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.1a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+              </button>
+            </div>
+
+            <div class="ch-next-trade-tabs" id="trade-slot-tabs">
+              <button class="ch-next-trade-tab ch-active" data-trade="1">Trade 1</button>
+              <button class="ch-next-trade-tab" data-trade="2">Trade 2</button>
+              <button class="ch-next-trade-tab" data-trade="3">Trade 3</button>
+              <button class="ch-next-trade-tab" data-trade="4">Trade 4</button>
+              <button class="ch-next-trade-tab" data-trade="5">Trade 5</button>
+            </div>
+
+            <div class="ch-next-trade-body">
+              <div class="ch-next-trade-stat">
+                <div class="ch-label">Recommended Risk</div>
+                <div class="ch-num" id="recommended-risk">—</div>
+                <div class="ch-metric-foot">0.50% of balance</div>
+              </div>
+              <div class="ch-next-trade-stat">
+                <div class="ch-label">Maximum Allowed</div>
+                <div class="ch-num" id="maximum-risk">—</div>
+                <div class="ch-metric-foot">before entering caution zone</div>
+              </div>
+            </div>
+
+            <div class="ch-next-trade-status ch-pill-safe" id="next-trade-status" data-state="safe">
+              <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.4;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Safe to Trade
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- =====================================================
+           RULE MONITOR
+           ===================================================== -->
+      <div class="ch-section" id="rule-monitor">
+        <div class="ch-section-head">
+          <div class="ch-section-title">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Rule Monitor
+          </div>
+        </div>
+        <div class="ch-rule-grid">
+          <div class="ch-rule-row" data-rule="daily-drawdown" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Daily Drawdown</span><span class="ch-rule-value">$80 / $200 · Safe</span></div>
+          <div class="ch-rule-row" data-rule="overall-drawdown" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Overall Drawdown</span><span class="ch-rule-value">$180 / $500 · Safe</span></div>
+          <div class="ch-rule-row" data-rule="profit-target" data-status="progress"><span class="ch-rule-name"><span class="ch-rule-dot ch-warn"></span>Profit Target</span><span class="ch-rule-value">In Progress · 42%</span></div>
+          <div class="ch-rule-row" data-rule="min-trading-days" data-status="progress"><span class="ch-rule-name"><span class="ch-rule-dot ch-warn"></span>Minimum Trading Days</span><span class="ch-rule-value">2 / 5</span></div>
+          <div class="ch-rule-row" data-rule="max-trades" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Maximum Trades</span><span class="ch-rule-value">3 / 5</span></div>
+          <div class="ch-rule-row" data-rule="risk-per-trade" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Risk Per Trade</span><span class="ch-rule-value">0.50% · Safe</span></div>
+          <div class="ch-rule-row" data-rule="daily-risk" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Daily Risk</span><span class="ch-rule-value">0.75% / 1.00%</span></div>
+          <div class="ch-rule-row" data-rule="consistency" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Consistency</span><span class="ch-rule-value">Safe</span></div>
+          <div class="ch-rule-row" data-rule="news-trading" data-status="enabled"><span class="ch-rule-name"><span class="ch-rule-dot ch-neutral"></span>News Trading</span><span class="ch-rule-value">Enabled</span></div>
+          <div class="ch-rule-row" data-rule="weekend-holding" data-status="disabled"><span class="ch-rule-name"><span class="ch-rule-dot ch-danger"></span>Weekend Holding</span><span class="ch-rule-value">Disabled</span></div>
+          <div class="ch-rule-row" data-rule="position-size" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Position Size</span><span class="ch-rule-value">Safe</span></div>
+          <div class="ch-rule-row" data-rule="max-losses" data-status="safe"><span class="ch-rule-name"><span class="ch-rule-dot ch-safe"></span>Maximum Losses</span><span class="ch-rule-value">1 / 2</span></div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           EQUITY CURVE
+           ===================================================== -->
+      <div class="ch-section">
+        <div class="ch-card ch-chart-card">
+          <div class="ch-section-head" style="margin-bottom:0;">
+            <div class="ch-section-title">
+              <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+              Account Equity
+            </div>
+            <div class="ch-period-switch" data-target="equity-chart">
+              <button class="ch-period-btn" data-period="day">Day</button>
+              <button class="ch-period-btn" data-period="week">Week</button>
+              <button class="ch-period-btn ch-active" data-period="month">Month</button>
+              <button class="ch-period-btn" data-period="year">Year</button>
+              <button class="ch-period-btn" data-period="custom">Custom</button>
+            </div>
+          </div>
+          <div class="ch-chart-legend">
+            <span><i style="background:var(--eva-accent-1)"></i>Equity</span>
+            <span><i style="background:var(--ch-danger); opacity:.5"></i>Drawdown Zone</span>
+          </div>
+          <div class="ch-chart-canvas" id="equity-chart" data-chart="equity" role="img" aria-label="Account equity curve, live account data">
+            <div class="ch-echart-mount"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           PERFORMANCE CHARTS
+           ===================================================== -->
+      <div class="ch-section" id="performance-charts">
+        <div class="ch-section-head">
+          <div class="ch-section-title">
+            <svg viewBox="0 0 24 24"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>
+            Performance
+          </div>
+          <div class="ch-period-switch" data-target="performance-chart">
+            <button class="ch-period-btn" data-period="day">Day</button>
+            <button class="ch-period-btn ch-active" data-period="week">Week</button>
+            <button class="ch-period-btn" data-period="month">Month</button>
+            <button class="ch-period-btn" data-period="year">Year</button>
+            <button class="ch-period-btn" data-period="custom">Custom</button>
+          </div>
+        </div>
+
+        <div class="ch-perf-grid">
+          <div class="ch-card">
+            <div class="ch-label" style="margin-bottom:10px;">Daily P/L</div>
+            <div class="ch-chart-canvas ch-chart-sm" id="performance-chart" data-chart="daily-pl" role="img" aria-label="Daily profit and loss, live account data">
+              <div class="ch-echart-mount"></div>
+            </div>
+          </div>
+
+          <div class="ch-card">
+            <div class="ch-label" style="margin-bottom:10px;">Drawdown</div>
+            <div class="ch-chart-canvas ch-chart-sm" id="drawdown-chart" data-chart="drawdown" role="img" aria-label="Running drawdown from peak equity, live account data">
+              <div class="ch-echart-mount"></div>
+            </div>
+          </div>
+
+          <div class="ch-card">
+            <div class="ch-label" style="margin-bottom:10px;">Challenge Progress</div>
+            <div class="ch-chart-canvas ch-chart-sm" id="challenge-progress-chart" data-chart="challenge-progress" role="img" aria-label="Active phase progress toward target, live account data">
+              <div class="ch-echart-mount"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           HIERARCHICAL PERFORMANCE EXPLORER (Year -> Month -> Week -> Day)
+           ===================================================== -->
+      <div class="ch-section" id="performance-explorer">
+        <div class="ch-section-head">
+          <div class="ch-section-title">
+            <svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 3v18"/></svg>
+            Performance Explorer
+          </div>
+        </div>
+        <div class="ch-card">
+          <div class="ch-explorer-crumbs" id="explorer-breadcrumbs" data-level="year">
+            <button class="ch-active" data-level="year">2026</button>
+          </div>
+          <div class="ch-explorer-grid" id="explorer-grid" data-level="year">
+            <button class="ch-explorer-cell ch-pos" data-level="month" data-value="January"><span class="ch-explorer-cell-label">Jan</span><span class="ch-explorer-cell-value">+$210</span></button>
+            <button class="ch-explorer-cell ch-pos" data-level="month" data-value="February"><span class="ch-explorer-cell-label">Feb</span><span class="ch-explorer-cell-value">+$95</span></button>
+            <button class="ch-explorer-cell ch-neg" data-level="month" data-value="March"><span class="ch-explorer-cell-label">Mar</span><span class="ch-explorer-cell-value">-$40</span></button>
+            <button class="ch-explorer-cell ch-pos" data-level="month" data-value="April"><span class="ch-explorer-cell-label">Apr</span><span class="ch-explorer-cell-value">+$150</span></button>
+            <button class="ch-explorer-cell ch-pos" data-level="month" data-value="May"><span class="ch-explorer-cell-label">May</span><span class="ch-explorer-cell-value">+$60</span></button>
+            <button class="ch-explorer-cell ch-neg" data-level="month" data-value="June"><span class="ch-explorer-cell-label">Jun</span><span class="ch-explorer-cell-value">-$25</span></button>
+            <button class="ch-explorer-cell ch-pos" data-level="month" data-value="July"><span class="ch-explorer-cell-label">Jul</span><span class="ch-explorer-cell-value">+$180</span></button>
+            <button class="ch-explorer-cell ch-pos" data-level="month" data-value="August"><span class="ch-explorer-cell-label">Aug</span><span class="ch-explorer-cell-value">+$420</span></button>
+            <div class="ch-explorer-cell ch-empty-cell"><span class="ch-explorer-cell-label">Sep</span><span class="ch-explorer-cell-value">—</span></div>
+            <div class="ch-explorer-cell ch-empty-cell"><span class="ch-explorer-cell-label">Oct</span><span class="ch-explorer-cell-value">—</span></div>
+            <div class="ch-explorer-cell ch-empty-cell"><span class="ch-explorer-cell-label">Nov</span><span class="ch-explorer-cell-value">—</span></div>
+            <div class="ch-explorer-cell ch-empty-cell"><span class="ch-explorer-cell-label">Dec</span><span class="ch-explorer-cell-value">—</span></div>
+          </div>
+          <p style="font-size:0.76rem; color:var(--eva-text-dim); margin-top:12px;">Select a month to drill into weeks, then a week to drill into days. Populated by JavaScript at runtime.</p>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           TRADING CALENDAR
+           ===================================================== -->
+      <div class="ch-section" id="performance-calendar">
+        <div class="ch-section-head">
+          <div class="ch-section-title">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Trading Calendar
+          </div>
+          <div class="ch-cal-view-switch">
+            <button class="ch-active" data-view="month">Month</button>
+            <button data-view="week">Week</button>
+            <button data-view="year">Year</button>
+          </div>
+        </div>
+        <div class="ch-card">
+          <div class="ch-cal-head">
+            <div class="ch-cal-nav">
+              <button aria-label="Previous month"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+              <span class="ch-cal-title">August 2026</span>
+              <button aria-label="Next month"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+            </div>
+          </div>
+          <div class="ch-cal-grid">
+            <div class="ch-cal-dow">Sun</div><div class="ch-cal-dow">Mon</div><div class="ch-cal-dow">Tue</div><div class="ch-cal-dow">Wed</div><div class="ch-cal-dow">Thu</div><div class="ch-cal-dow">Fri</div><div class="ch-cal-dow">Sat</div>
+            <div class="ch-cal-day ch-cal-empty"></div>
+            <div class="ch-cal-day ch-cal-empty"></div>
+            <div class="ch-cal-day ch-cal-empty"></div>
+            <div class="ch-cal-day ch-cal-empty"></div>
+            <div class="ch-cal-day" data-date="2026-08-01"><span class="ch-cal-date">1</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-02" data-state="profit"><span class="ch-cal-date">2</span><span class="ch-cal-pl">+$45</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-03" data-state="profit"><span class="ch-cal-date">3</span><span class="ch-cal-pl">+$60</span></div>
+            <div class="ch-cal-day" data-date="2026-08-04"><span class="ch-cal-date">4</span></div>
+            <div class="ch-cal-day ch-cal-loss" data-date="2026-08-05" data-state="loss"><span class="ch-cal-date">5</span><span class="ch-cal-pl">-$45</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-06" data-state="profit"><span class="ch-cal-date">6</span><span class="ch-cal-pl">+$85</span></div>
+            <div class="ch-cal-day" data-date="2026-08-07"><span class="ch-cal-date">7</span></div>
+            <div class="ch-cal-day ch-cal-warning" data-date="2026-08-08" data-state="warning"><span class="ch-cal-date">8</span><span class="ch-cal-badge">⚠️</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-09" data-state="profit"><span class="ch-cal-date">9</span><span class="ch-cal-pl">+$30</span></div>
+            <div class="ch-cal-day" data-date="2026-08-10"><span class="ch-cal-date">10</span></div>
+            <div class="ch-cal-day" data-date="2026-08-11"><span class="ch-cal-date">11</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-12" data-state="phase-start"><span class="ch-cal-date">12</span><span class="ch-cal-badge">🚀</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-13" data-state="profit"><span class="ch-cal-date">13</span><span class="ch-cal-pl">+$70</span></div>
+            <div class="ch-cal-day ch-cal-loss" data-date="2026-08-14" data-state="loss"><span class="ch-cal-date">14</span><span class="ch-cal-pl">-$20</span></div>
+            <div class="ch-cal-day" data-date="2026-08-15"><span class="ch-cal-date">15</span></div>
+            <div class="ch-cal-day" data-date="2026-08-16"><span class="ch-cal-date">16</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-17" data-state="profit"><span class="ch-cal-date">17</span><span class="ch-cal-pl">+$55</span></div>
+            <div class="ch-cal-day" data-date="2026-08-18"><span class="ch-cal-date">18</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-19" data-state="profit"><span class="ch-cal-date">19</span><span class="ch-cal-pl">+$40</span></div>
+            <div class="ch-cal-day" data-date="2026-08-20"><span class="ch-cal-date">20</span></div>
+            <div class="ch-cal-day" data-date="2026-08-21"><span class="ch-cal-date">21</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-22" data-state="profit"><span class="ch-cal-date">22</span><span class="ch-cal-pl">+$65</span></div>
+            <div class="ch-cal-day ch-cal-profit" data-date="2026-08-23" data-state="profit"><span class="ch-cal-date">23</span><span class="ch-cal-pl">+$85</span></div>
+            <div class="ch-cal-day" data-date="2026-08-24"><span class="ch-cal-date">24</span></div>
+            <div class="ch-cal-day" data-date="2026-08-25"><span class="ch-cal-date">25</span></div>
+            <div class="ch-cal-day" data-date="2026-08-26"><span class="ch-cal-date">26</span></div>
+            <div class="ch-cal-day" data-date="2026-08-27"><span class="ch-cal-date">27</span></div>
+            <div class="ch-cal-day ch-cal-today" data-date="2026-08-28"><span class="ch-cal-date">28</span></div>
+            <div class="ch-cal-day" data-date="2026-08-29"><span class="ch-cal-date">29</span></div>
+            <div class="ch-cal-day" data-date="2026-08-30"><span class="ch-cal-date">30</span></div>
+            <div class="ch-cal-day" data-date="2026-08-31"><span class="ch-cal-date">31</span></div>
+          </div>
+          <div class="ch-cal-legend">
+            <span><i style="background:var(--ch-safe)"></i>Profitable Day</span>
+            <span><i style="background:var(--ch-danger)"></i>Loss Day</span>
+            <span><i style="background:var(--ch-warn)"></i>Warning</span>
+            <span>🚀 Phase Start</span>
+            <span>🏆 Phase Passed</span>
+            <span>💰 Payout</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           PERFORMANCE STATISTICS
+           ===================================================== -->
+      <div class="ch-section" id="performance-statistics">
+        <div class="ch-section-head"><div class="ch-section-title">
+          <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg>
+          Performance Statistics
+        </div></div>
+        <div class="ch-stats-grid">
+          <div class="ch-stat-item"><span class="ch-num">47</span><span class="ch-label">Total Trades</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-safe)">29</span><span class="ch-label">Winning Trades</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-danger)">15</span><span class="ch-label">Losing Trades</span></div>
+          <div class="ch-stat-item"><span class="ch-num">3</span><span class="ch-label">Break-Even Trades</span></div>
+          <div class="ch-stat-item"><span class="ch-num">61.7%</span><span class="ch-label">Win Rate</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-safe)">$38.20</span><span class="ch-label">Average Win</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-danger)">$22.10</span><span class="ch-label">Average Loss</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-safe)">$95.00</span><span class="ch-label">Largest Win</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-danger)">$60.00</span><span class="ch-label">Largest Loss</span></div>
+          <div class="ch-stat-item"><span class="ch-num">1.73</span><span class="ch-label">Profit Factor</span></div>
+          <div class="ch-stat-item"><span class="ch-num">1.4R</span><span class="ch-label">Average R</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-safe)">+$420.00</span><span class="ch-label">Total P/L</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-safe)">+$95.00</span><span class="ch-label">Best Day</span></div>
+          <div class="ch-stat-item"><span class="ch-num" style="color:var(--ch-danger)">-$60.00</span><span class="ch-label">Worst Day</span></div>
+          <div class="ch-stat-item"><span class="ch-num">4.2%</span><span class="ch-label">Maximum Drawdown</span></div>
+          <div class="ch-stat-item"><span class="ch-num">Full</span><span class="ch-label">Recovery</span></div>
+          <div class="ch-stat-item"><span class="ch-num">0.52%</span><span class="ch-label">Average Risk</span></div>
+          <div class="ch-stat-item"><span class="ch-num">24.4%</span><span class="ch-label">Total Risk</span></div>
+          <div class="ch-stat-item"><span class="ch-num">7</span><span class="ch-label">Trading Days</span></div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ACCOUNT GROWTH
+           ===================================================== -->
+      <div class="ch-section" id="account-growth">
+        <div class="ch-section-head">
+          <div class="ch-section-title">
+            <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Account Growth
+          </div>
+          <div class="ch-period-switch" data-target="growth-chart">
+            <button class="ch-period-btn" data-period="week">Week</button>
+            <button class="ch-period-btn ch-active" data-period="month">Month</button>
+            <button class="ch-period-btn" data-period="year">Year</button>
+            <button class="ch-period-btn" data-period="custom">Custom</button>
+          </div>
+        </div>
+        <div class="ch-card">
+          <div class="ch-grid ch-grid-4" style="margin-bottom:16px;">
+            <div><span class="ch-label">Starting Balance</span><div class="ch-num" style="font-size:1.1rem;">$5,000.00</div></div>
+            <div><span class="ch-label">Current Balance</span><div class="ch-num" style="font-size:1.1rem;">$5,420.00</div></div>
+            <div><span class="ch-label">Net Growth</span><div class="ch-num" style="font-size:1.1rem; color:var(--ch-safe);">+$420.00</div></div>
+            <div><span class="ch-label">Growth %</span><div class="ch-num" style="font-size:1.1rem; color:var(--ch-safe);">+8.4%</div></div>
+          </div>
+          <div class="ch-chart-canvas ch-chart-sm" id="growth-chart" data-chart="growth" role="img" aria-label="Account growth curve, live account data">
+            <div class="ch-echart-mount"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           TRADING DAY CONTROL
+           ===================================================== -->
+      <div class="ch-section" id="trading-day-control">
+        <div class="ch-grid ch-grid-2">
+          <div class="ch-card">
+            <div class="ch-section-title" style="margin-bottom:10px;">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Trading Days
+            </div>
+            <div class="ch-risk-row"><span class="ch-label">Trading Days Completed</span><span class="ch-num">7</span></div>
+            <div class="ch-risk-row"><span class="ch-label">Minimum Trading Days</span><span class="ch-num">5</span></div>
+            <div class="ch-risk-row"><span class="ch-label">Maximum Trading Days</span><span class="ch-num">30</span></div>
+            <div class="ch-risk-row"><span class="ch-label">Challenge Deadline</span><span class="ch-num">Sep 22, 2026</span></div>
+            <div class="ch-trading-days-row">
+              <span class="ch-td-dot ch-td-done">1</span><span class="ch-td-dot ch-td-done">2</span><span class="ch-td-dot ch-td-done">3</span><span class="ch-td-dot ch-td-done">4</span><span class="ch-td-dot ch-td-done">5</span><span class="ch-td-dot ch-td-done">6</span><span class="ch-td-dot ch-td-done">7</span>
+              <span class="ch-td-dot">8</span><span class="ch-td-dot">9</span><span class="ch-td-dot">10</span><span class="ch-td-dot">11</span><span class="ch-td-dot">12</span>
+            </div>
+          </div>
+
+          <div class="ch-card" id="payout-progress">
+            <div class="ch-section-title" style="margin-bottom:10px;">
+              <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+              Payout
+            </div>
+            <div class="ch-payout-hero">
+              <div>
+                <span class="ch-label">Withdrawable Profit</span>
+                <div class="ch-num">$0.00</div>
+              </div>
+              <span class="ch-pill ch-pill-neutral" data-state="not-eligible"><span class="ch-pill-dot"></span>Not Eligible</span>
+            </div>
+            <div class="ch-bar-track" style="margin-top:12px;"><div class="ch-bar-fill" style="width:0%"></div></div>
+            <div class="ch-payout-split">
+              <div class="ch-payout-split-row"><span>Profit Split</span><b>80 / 20</b></div>
+              <div class="ch-payout-split-row"><span>Next Payout</span><b>Available after funding</b></div>
+              <div class="ch-payout-split-row"><span>Payout Status</span><b>Not Eligible</b></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ACCOUNT HEALTH + RISK DISCIPLINE
+           ===================================================== -->
+      <div class="ch-section">
+        <div class="ch-grid ch-grid-2">
+          <div class="ch-card" id="account-health">
+            <div class="ch-section-title" style="margin-bottom:14px;">
+              <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+              Account Health
+            </div>
+            <div class="ch-health-wrap">
+              <div class="ch-health-ring">
+                <svg viewBox="0 0 110 110">
+                  <circle cx="55" cy="55" r="46" fill="none" stroke="var(--eva-surface-2)" stroke-width="9"/>
+                  <circle cx="55" cy="55" r="46" fill="none" stroke="var(--ch-safe)" stroke-width="9" stroke-linecap="round" stroke-dasharray="289" stroke-dashoffset="38"/>
+                </svg>
+                <div class="ch-health-ring-center"><span class="ch-num" id="account-health-score">87</span><span class="ch-label" style="font-size:0.6rem;">/ 100</span></div>
+              </div>
+              <div class="ch-health-factors">
+                <div class="ch-health-factor"><span>Drawdown Safety</span><div class="ch-bar-track"><div class="ch-bar-fill ch-fill-safe" style="width:92%"></div></div><b>92</b></div>
+                <div class="ch-health-factor"><span>Risk Discipline</span><div class="ch-bar-track"><div class="ch-bar-fill ch-fill-safe" style="width:85%"></div></div><b>85</b></div>
+                <div class="ch-health-factor"><span>Rule Compliance</span><div class="ch-bar-track"><div class="ch-bar-fill ch-fill-safe" style="width:95%"></div></div><b>95</b></div>
+                <div class="ch-health-factor"><span>Target Progress</span><div class="ch-bar-track"><div class="ch-bar-fill ch-fill-warn" style="width:72%"></div></div><b>72</b></div>
+                <div class="ch-health-factor"><span>Consistency</span><div class="ch-bar-track"><div class="ch-bar-fill ch-fill-safe" style="width:80%"></div></div><b>80</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ch-card">
+            <div class="ch-section-title" style="margin-bottom:10px;">
+              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Risk Discipline
+            </div>
+            <div class="ch-risk-list">
+              <div class="ch-risk-row"><span class="ch-label">Average Risk</span><span class="ch-num">0.52%</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Maximum Risk</span><span class="ch-num">0.95%</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Daily Risk</span><span class="ch-num">0.75%</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Risk Consistency</span><span class="ch-num">High</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Over-Risk Events</span><span class="ch-num">1</span></div>
+              <div class="ch-risk-row"><span class="ch-label">Risk Violations</span><span class="ch-num">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ACCOUNT RULES CONFIGURATION
+           ===================================================== -->
+      <div class="ch-section" id="account-rules-configuration">
+        <div class="ch-section-head"><div class="ch-section-title">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.1a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+          Account Rules
+        </div></div>
+        <div class="ch-rules-config-grid">
+          <div class="ch-config-row"><span class="ch-config-name">Daily Drawdown<span>Maximum 4% of balance</span></span><span class="ch-switch ch-on"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Overall Drawdown<span>Maximum 10% of balance</span></span><span class="ch-switch ch-on"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Trailing Drawdown<span>Not applied to this account</span></span><span class="ch-switch"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Consistency Rule<span>No single day &gt; 30% of total profit</span></span><span class="ch-switch ch-on"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Minimum Trading Days<span>5 days required</span></span><span class="ch-switch ch-on"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Maximum Trades / Day<span>5 trades</span></span><span class="ch-switch ch-on"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">News Trading<span>Allowed during high-impact events</span></span><span class="ch-switch ch-on"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Weekend Holding<span>Positions must close Friday</span></span><span class="ch-switch"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Hedging<span>Not permitted</span></span><span class="ch-switch"></span></div>
+          <div class="ch-config-row"><span class="ch-config-name">Stop After Losses<span>Pause after 2 consecutive losses</span></span><span class="ch-switch ch-on"></span></div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           CHALLENGE TIMELINE
+           ===================================================== -->
+      <div class="ch-section" id="challenge-timeline">
+        <div class="ch-section-head"><div class="ch-section-title">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Challenge Timeline
+        </div></div>
+        <div class="ch-card">
+          <div class="ch-timeline">
+            <div class="ch-timeline-item ch-tl-done">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div><div class="ch-timeline-line"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Challenge Created</div><div class="ch-timeline-date">Aug 12, 2026</div></div>
+            </div>
+            <div class="ch-timeline-item ch-tl-done">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div><div class="ch-timeline-line"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Phase 1 Started</div><div class="ch-timeline-date">Aug 12, 2026</div></div>
+            </div>
+            <div class="ch-timeline-item ch-tl-active">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div><div class="ch-timeline-line"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Phase 1 In Progress</div><div class="ch-timeline-date">72% toward target</div></div>
+            </div>
+            <div class="ch-timeline-item">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div><div class="ch-timeline-line"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Phase 2 Started</div><div class="ch-timeline-date">Pending</div></div>
+            </div>
+            <div class="ch-timeline-item">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div><div class="ch-timeline-line"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Phase 2 Passed</div><div class="ch-timeline-date">Pending</div></div>
+            </div>
+            <div class="ch-timeline-item">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div><div class="ch-timeline-line"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Funded</div><div class="ch-timeline-date">Pending</div></div>
+            </div>
+            <div class="ch-timeline-item">
+              <div class="ch-timeline-rail"><div class="ch-timeline-dot"></div></div>
+              <div class="ch-timeline-body"><div class="ch-timeline-title">Payout</div><div class="ch-timeline-date">Pending</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           ACCOUNT ALERT CENTER
+           ===================================================== -->
+      <div class="ch-section" id="account-alert-center">
+        <div class="ch-section-head"><div class="ch-section-title">
+          <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Alert Center
+        </div></div>
+        <div class="ch-card">
+          <div class="ch-alert-list">
+            <div class="ch-alert ch-alert-warning">
+              <span class="ch-alert-icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+              <div><div class="ch-alert-title">Daily drawdown approaching</div><div class="ch-alert-desc">You've used 40% of today's drawdown limit.</div></div>
+              <span class="ch-alert-time">2h ago</span>
+            </div>
+            <div class="ch-alert ch-alert-success">
+              <span class="ch-alert-icon"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+              <div><div class="ch-alert-title">Target almost reached</div><div class="ch-alert-desc">42% of your Phase 1 profit target is complete.</div></div>
+              <span class="ch-alert-time">5h ago</span>
+            </div>
+            <div class="ch-alert ch-alert-info">
+              <span class="ch-alert-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+              <div><div class="ch-alert-title">Deadline approaching</div><div class="ch-alert-desc">23 days remain to complete Phase 1.</div></div>
+              <span class="ch-alert-time">1d ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================
+           STATE REFERENCE: empty / loading / error
+           (demo only — JS swaps these in per-component at runtime)
+           ===================================================== -->
+      <div class="ch-section" id="state-reference" style="display:none;" aria-hidden="true">
+        <div class="ch-grid ch-grid-3">
+          <div class="ch-card">
+            <div class="ch-empty">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+              <strong>No trades yet.</strong>
+              <span>Trades will appear here once logged.</span>
+            </div>
+          </div>
+          <div class="ch-card">
+            <div class="ch-skel" style="height:14px; width:60%; margin-bottom:10px;"></div>
+            <div class="ch-skel" style="height:28px; width:40%; margin-bottom:14px;"></div>
+            <div class="ch-skel" style="height:8px; width:100%;"></div>
+          </div>
+          <div class="ch-card">
+            <div class="ch-error">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Unable to load challenge data.</span>
+              <span class="ch-error-actions"><button class="ch-btn">Try again</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </template>
+
+  <script src="eva-loader.js"></script>
+
+  <!-- Modal open/close + real Firebase save logic for both the Add Trade
+       and Create Account modals now lives entirely in challenge.js, so
+       there is exactly one implementation of each and no duplicate,
+       visual-only handlers left behind. -->
+  <script type="module" src="challenge.js"></script>
+</body>
+</html>

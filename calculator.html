@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>NASDAQ / US100 P&L Calculator</title>
+<style>
+  :root{
+    --bg:#0d1117;
+    --panel:#151b23;
+    --panel-2:#1c2430;
+    --border:#2a333f;
+    --text:#e6edf3;
+    --text-dim:#8b98a5;
+    --accent:#3b82f6;
+    --green:#1f9d55;
+    --green-bg:#0f2419;
+    --red:#e5484d;
+    --red-bg:#2a1315;
+    --yellow:#d4a72c;
+    --yellow-bg:#2a230f;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    padding:16px;
+    display:flex;
+    justify-content:center;
+  }
+  .app{
+    width:100%;
+    max-width:460px;
+  }
+  header{
+    text-align:center;
+    margin-bottom:18px;
+  }
+  header h1{
+    font-size:19px;
+    font-weight:700;
+    margin:0 0 2px;
+    letter-spacing:0.2px;
+  }
+  header p{
+    font-size:12.5px;
+    color:var(--text-dim);
+    margin:0;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .direction-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .dir-btn{
+    padding:14px 0;
+    border-radius:var(--radius);
+    border:1.5px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text-dim);
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .15s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dir-btn.active-buy{
+    background:var(--green-bg);
+    border-color:var(--green);
+    color:var(--green);
+  }
+  .dir-btn.active-sell{
+    background:var(--red-bg);
+    border-color:var(--red);
+    color:var(--red);
+  }
+  .field{
+    margin-bottom:12px;
+  }
+  .field:last-child{margin-bottom:0;}
+  label{
+    display:block;
+    font-size:12.5px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+    font-weight:500;
+  }
+  input[type=text]{
+    width:100%;
+    background:var(--panel-2);
+    border:1.5px solid var(--border);
+    border-radius:8px;
+    color:var(--text);
+    font-size:17px;
+    padding:12px 12px;
+    outline:none;
+    transition:border-color .15s ease;
+    font-variant-numeric:tabular-nums;
+  }
+  input[type=text]:focus{
+    border-color:var(--accent);
+  }
+  input.err{
+    border-color:var(--red);
+  }
+  .error-msg{
+    color:var(--red);
+    font-size:12px;
+    margin-top:6px;
+    min-height:0;
+  }
+  .btn-row{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:10px;
+    margin-top:4px;
+  }
+  .calc-btn{
+    padding:15px 0;
+    border-radius:var(--radius);
+    border:none;
+    background:var(--accent);
+    color:#fff;
+    font-size:16px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .calc-btn:active{
+    filter:brightness(0.9);
+  }
+  .reset-btn{
+    padding:15px 18px;
+    border-radius:var(--radius);
+    border:1.5px solid var(--border);
+    background:transparent;
+    color:var(--text-dim);
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* Result */
+  .result-card{
+    border-radius:var(--radius);
+    border:1.5px solid var(--border);
+    padding:20px 16px;
+    text-align:center;
+    background:var(--panel);
+    display:none;
+  }
+  .result-card.show{display:block;}
+  .result-card.profit{background:var(--green-bg); border-color:var(--green);}
+  .result-card.loss{background:var(--red-bg); border-color:var(--red);}
+  .result-card.breakeven{background:var(--yellow-bg); border-color:var(--yellow);}
+  .result-status{
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    margin-bottom:4px;
+  }
+  .result-status.profit{color:var(--green);}
+  .result-status.loss{color:var(--red);}
+  .result-status.breakeven{color:var(--yellow);}
+  .result-amount{
+    font-size:36px;
+    font-weight:800;
+    margin-bottom:14px;
+    font-variant-numeric:tabular-nums;
+  }
+  .result-amount.profit{color:var(--green);}
+  .result-amount.loss{color:var(--red);}
+  .result-amount.breakeven{color:var(--yellow);}
+
+  .stats-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    text-align:left;
+  }
+  .stat{
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .stat-label{
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:3px;
+  }
+  .stat-value{
+    font-size:15.5px;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .stat-value.neg{color:var(--red);}
+  .stat-value.pos{color:var(--green);}
+
+  .assumption{
+    margin-top:16px;
+    font-size:11.5px;
+    color:var(--text-dim);
+    line-height:1.5;
+    border-top:1px solid var(--border);
+    padding-top:12px;
+  }
+  .assumption b{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>NASDAQ / US100 P&L CALCULATOR</h1>
+    <p>Entry, exit, SL/TP &amp; lot size → instant P&amp;L</p>
+  </header>
+
+  <div class="card">
+    <div class="direction-row">
+      <button type="button" class="dir-btn" id="btnBuy">🟢 BUY</button>
+      <button type="button" class="dir-btn" id="btnSell">🔴 SELL</button>
+    </div>
+    <div class="error-msg" id="dirError"></div>
+
+    <div class="field">
+      <label for="entry">Entry Price</label>
+      <input type="text" inputmode="decimal" id="entry" placeholder="23000">
+      <div class="error-msg" id="entryError"></div>
+    </div>
+
+    <div class="field">
+      <label for="exit">Exit Price</label>
+      <input type="text" inputmode="decimal" id="exit" placeholder="23100">
+      <div class="error-msg" id="exitError"></div>
+    </div>
+
+    <div class="field">
+      <label for="sl">Stop Loss</label>
+      <input type="text" inputmode="decimal" id="sl" placeholder="22950">
+      <div class="error-msg" id="slError"></div>
+    </div>
+
+    <div class="field">
+      <label for="tp">Take Profit</label>
+      <input type="text" inputmode="decimal" id="tp" placeholder="23200">
+      <div class="error-msg" id="tpError"></div>
+    </div>
+
+    <div class="field">
+      <label for="lot">Lot Size</label>
+      <input type="text" inputmode="decimal" id="lot" value="0.05">
+      <div class="error-msg" id="lotError"></div>
+    </div>
+
+    <div class="btn-row">
+      <button type="button" class="calc-btn" id="calcBtn">CALCULATE</button>
+      <button type="button" class="reset-btn" id="resetBtn">RESET</button>
+    </div>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-status" id="resultStatus">PROFIT</div>
+    <div class="result-amount" id="resultAmount">+$0.00</div>
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">Points Moved</div>
+        <div class="stat-value" id="statPoints">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Risk</div>
+        <div class="stat-value neg" id="statRisk">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Reward</div>
+        <div class="stat-value pos" id="statReward">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Risk : Reward</div>
+        <div class="stat-value" id="statRR">—</div>
+      </div>
+    </div>
+    <div class="assumption">
+      <b>Contract assumption:</b> $1 profit/loss per index point, per 1.00 lot (i.e. $0.01/point per 0.01 lot) — Exness NAS100/US100 standard contract sizing. Exness sometimes runs promo/variable contract sizes — verify against your account's exact contract specification before relying on this for real trades.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- ISOLATED CONTRACT CONFIGURATION ----
+  // Assumption: 1.00 lot = $1 per index point (standard Exness NAS100/US100 spec).
+  // VERIFY against your live Exness contract specification page before trusting real trades.
+  var CONTRACT = {
+    dollarPerPointPerLot: 1
+  };
+  // ------------------------------------------
+
+  var direction = null; // 'buy' | 'sell'
+
+  var els = {
+    btnBuy: document.getElementById('btnBuy'),
+    btnSell: document.getElementById('btnSell'),
+    entry: document.getElementById('entry'),
+    exit: document.getElementById('exit'),
+    sl: document.getElementById('sl'),
+    tp: document.getElementById('tp'),
+    lot: document.getElementById('lot'),
+    calcBtn: document.getElementById('calcBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    resultCard: document.getElementById('resultCard'),
+    resultStatus: document.getElementById('resultStatus'),
+    resultAmount: document.getElementById('resultAmount'),
+    statPoints: document.getElementById('statPoints'),
+    statRisk: document.getElementById('statRisk'),
+    statReward: document.getElementById('statReward'),
+    statRR: document.getElementById('statRR'),
+    dirError: document.getElementById('dirError'),
+    entryError: document.getElementById('entryError'),
+    exitError: document.getElementById('exitError'),
+    slError: document.getElementById('slError'),
+    tpError: document.getElementById('tpError'),
+    lotError: document.getElementById('lotError')
+  };
+
+  function clearErrors(){
+    ['dir','entry','exit','sl','tp','lot'].forEach(function(k){
+      els[k+'Error'].textContent = '';
+    });
+    ['entry','exit','sl','tp','lot'].forEach(function(k){
+      els[k].classList.remove('err');
+    });
+  }
+
+  function setDirection(d){
+    direction = d;
+    els.btnBuy.classList.toggle('active-buy', d === 'buy');
+    els.btnSell.classList.toggle('active-sell', d === 'sell');
+  }
+
+  els.btnBuy.addEventListener('click', function(){ setDirection('buy'); });
+  els.btnSell.addEventListener('click', function(){ setDirection('sell'); });
+
+  // Strictly parse a required numeric field. Returns a Number, or null if invalid.
+  // Does NOT use `Number(x) || 0` — an explicit invalid flag is used instead so
+  // 0 is never silently substituted for a missing/invalid value.
+  function parseRequiredNumber(rawValue){
+    if (typeof rawValue !== 'string') return null;
+    var trimmed = rawValue.trim();
+    if (trimmed === '') return null;
+    if (!/^-?\d+(\.\d+)?$/.test(trimmed)) return null;
+    var n = Number(trimmed);
+    if (!isFinite(n)) return null;
+    return n;
+  }
+
+  function fmtMoney(n){
+    var sign = n < 0 ? '-' : (n > 0 ? '+' : '');
+    return sign + '$' + Math.abs(n).toFixed(2);
+  }
+
+  function fmtMoneyPlain(n){
+    // for Risk/Reward boxes: risk always shown negative, reward always shown positive
+    return (n < 0 ? '-' : '+') + '$' + Math.abs(n).toFixed(2);
+  }
+
+  function fmtPoints(n){
+    var sign = n < 0 ? '-' : (n > 0 ? '+' : '');
+    return sign + Math.abs(n).toFixed(2) + ' pts';
+  }
+
+  function calculate(){
+    clearErrors();
+    var hasError = false;
+
+    if (!direction){
+      els.dirError.textContent = 'Select BUY or SELL.';
+      hasError = true;
+    }
+
+    var entry = parseRequiredNumber(els.entry.value);
+    if (entry === null){
+      els.entry.classList.add('err');
+      els.entryError.textContent = 'Enter a valid entry price.';
+      hasError = true;
+    }
+
+    var exitP = parseRequiredNumber(els.exit.value);
+    if (exitP === null){
+      els.exit.classList.add('err');
+      els.exitError.textContent = 'Enter a valid exit price.';
+      hasError = true;
+    }
+
+    var sl = parseRequiredNumber(els.sl.value);
+    if (sl === null){
+      els.sl.classList.add('err');
+      els.slError.textContent = 'Enter a valid stop loss.';
+      hasError = true;
+    }
+
+    var tp = parseRequiredNumber(els.tp.value);
+    if (tp === null){
+      els.tp.classList.add('err');
+      els.tpError.textContent = 'Enter a valid take profit.';
+      hasError = true;
+    }
+
+    var lot = parseRequiredNumber(els.lot.value);
+    if (lot === null || lot <= 0){
+      els.lot.classList.add('err');
+      els.lotError.textContent = 'Lot size must be greater than 0.';
+      hasError = true;
+    }
+
+    if (hasError){
+      els.resultCard.classList.remove('show');
+      return;
+    }
+
+    var dirMultiplier = direction === 'buy' ? 1 : -1;
+    var pointValue = CONTRACT.dollarPerPointPerLot * lot;
+
+    // Points moved (directional: positive = favorable movement for chosen direction)
+    var pointsMoved = (exitP - entry) * dirMultiplier;
+    var pnl = pointsMoved * pointValue;
+
+    // Risk: loss incurred if SL is hit (always expressed as a negative $ amount,
+    // or $0 if SL is not actually adverse to the position — but per spec, risk
+    // is "the amount that would be lost if SL is hit", computed directionally).
+    var slPointsMoved = (sl - entry) * dirMultiplier;
+    var riskDollars = slPointsMoved * pointValue; // typically negative
+
+    // Reward: profit if TP is hit
+    var tpPointsMoved = (tp - entry) * dirMultiplier;
+    var rewardDollars = tpPointsMoved * pointValue; // typically positive
+
+    // Status
+    var EPS = 0.005; // floating point tolerance in dollars
+    var status;
+    if (Math.abs(pnl) < EPS){
+      status = 'breakeven';
+    } else if (pnl > 0){
+      status = 'profit';
+    } else {
+      status = 'loss';
+    }
+
+    els.resultCard.classList.remove('profit','loss','breakeven');
+    els.resultStatus.classList.remove('profit','loss','breakeven');
+    els.resultAmount.classList.remove('profit','loss','breakeven');
+
+    els.resultCard.classList.add('show', status);
+    els.resultStatus.classList.add(status);
+    els.resultAmount.classList.add(status);
+
+    els.resultStatus.textContent = status === 'profit' ? 'PROFIT' : (status === 'loss' ? 'LOSS' : 'BREAK-EVEN');
+    els.resultAmount.textContent = status === 'breakeven' ? '$0.00' : fmtMoney(pnl);
+
+    els.statPoints.textContent = fmtPoints(pointsMoved);
+
+    var riskAbs = Math.abs(riskDollars);
+    var rewardAbs = Math.abs(rewardDollars);
+
+    els.statRisk.textContent = '-$' + riskAbs.toFixed(2);
+    els.statReward.textContent = '+$' + rewardAbs.toFixed(2);
+
+    if (riskAbs < EPS){
+      els.statRR.textContent = '—';
+    } else {
+      var rr = rewardAbs / riskAbs;
+      els.statRR.textContent = '1 : ' + rr.toFixed(2);
+    }
+  }
+
+  function resetAll(){
+    direction = null;
+    els.btnBuy.classList.remove('active-buy');
+    els.btnSell.classList.remove('active-sell');
+    els.entry.value = '';
+    els.exit.value = '';
+    els.sl.value = '';
+    els.tp.value = '';
+    els.lot.value = '0.05';
+    clearErrors();
+    els.resultCard.classList.remove('show','profit','loss','breakeven');
+  }
+
+  els.calcBtn.addEventListener('click', calculate);
+  els.resetBtn.addEventListener('click', resetAll);
+
+  [els.entry, els.exit, els.sl, els.tp, els.lot].forEach(function(input){
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){
+        calculate();
+      }
+    });
+  });
+
+  // ---- Internal self-tests (run once on load, logged to console only) ----
+  function runSelfTests(){
+    var results = [];
+    function approxEqual(a,b){ return Math.abs(a-b) < 0.001; }
+
+    function calc(dir, entry, exitP, lot){
+      var m = dir === 'buy' ? 1 : -1;
+      var pv = CONTRACT.dollarPerPointPerLot * lot;
+      return (exitP - entry) * m * pv;
+    }
+
+    // Test 1: BUY profit
+    results.push(['BUY profit', calc('buy',23000,23100,0.05) > 0]);
+    // Test 2: BUY loss
+    results.push(['BUY loss', calc('buy',23000,22900,0.05) < 0]);
+    // Test 3: SELL profit
+    results.push(['SELL profit', calc('sell',23000,22900,0.05) > 0]);
+    // Test 4: SELL loss
+    results.push(['SELL loss', calc('sell',23000,23100,0.05) < 0]);
+    // Test 5: breakeven
+    results.push(['Breakeven', approxEqual(calc('buy',23000,23000,0.05), 0)]);
+
+    var allPass = results.every(function(r){ return r[1]; });
+    console.log('Self-tests:', allPass ? 'ALL PASS' : 'FAILURE', results);
+  }
+  runSelfTests();
+})();
+</script>
+</body>
+</html>
